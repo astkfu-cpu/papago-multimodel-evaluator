@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "Papago 多模型翻译评价助手",
+  "version": "0.25.0",
+  "description": "读取 Papago Pro 原图与译图，按指定规则调用 DeepSeek 或千问评分、填写评论并切换任务。",
+  "permissions": ["activeTab", "tabs", "storage", "unlimitedStorage", "sidePanel", "debugger"],
+  "host_permissions": [
+    "<all_urls>",
+    "https://papago-pro.naver.com/*",
+    "https://api.deepseek.com/*",
+    "https://dashscope.aliyuncs.com/*",
+    "https://dashscope-intl.aliyuncs.com/*",
+    "https://*.maas.aliyuncs.com/*"
+  ],
+  "externally_connectable": {
+    "ids": ["dkoifdkgghhfnifnacfjioljdognejbl"]
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "打开翻译评价助手"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://papago-pro.naver.com/*"],
+      "js": ["highlight-detector.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

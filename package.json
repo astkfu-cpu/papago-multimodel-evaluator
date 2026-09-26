@@ -1,0 +1,19 @@
+{
+  "name": "papago-multimodel-evaluator",
+  "version": "0.25.0",
+  "description": "Edge/Chrome extension for reviewing Papago Pro image-translation quality with DeepSeek or Qwen.",
+  "private": false,
+  "scripts": {
+    "test": "npm run test:unit",
+    "test:unit": "node test-static.mjs && node test-api-cache.mjs && node test-highlight-detector.mjs && node test-target-pipeline.mjs",
+    "test:e2e": "node test-archive.cjs && node test-browser-crop.cjs",
+    "test:all": "npm run test:unit && npm run test:e2e"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
+

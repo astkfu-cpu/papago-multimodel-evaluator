@@ -1,0 +1,65 @@
+:root {
+  color-scheme: light;
+  font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+  color: #182230;
+  background: #f3f6fa;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; min-width: 320px; }
+main { padding: 16px; }
+header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+h1 { font-size: 20px; margin: 0 0 3px; }
+header p, .hint, footer { color: #667085; font-size: 12px; margin: 0; }
+h2 { font-size: 14px; margin: 0 0 12px; }
+.card { background: #fff; border: 1px solid #e4e9f0; border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 7px rgba(16, 24, 40, .04); }
+label { display: block; font-size: 12px; color: #475467; margin-top: 10px; }
+input, select { width: 100%; margin-top: 5px; border: 1px solid #cfd7e3; border-radius: 8px; padding: 9px 10px; background: white; color: #182230; }
+.check { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.check input { width: auto; margin: 0; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 10px; }
+.grid h2, .grid .check, .grid .full-row { grid-column: 1 / -1; }
+.status-card { border-color: #cfe0ff; box-shadow: 0 3px 10px rgba(23, 92, 211, .08); }
+.tab-target { margin: 0 0 7px; padding: 6px 8px; border-radius: 7px; background: #eef4ff; color: #175cd3; font-size: 11px; line-height: 1.4; }
+.status-card > #status { margin: 0; font-size: 13px; line-height: 1.5; color: #344054; }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0; }
+button { border: 0; border-radius: 9px; padding: 10px 8px; font-weight: 650; cursor: pointer; }
+button:disabled { opacity: .5; cursor: default; }
+.primary { background: #1677ff; color: white; }
+.secondary { background: #e8f1ff; color: #145fc2; }
+.danger { grid-column: 1 / -1; background: #fff0f0; color: #c43232; }
+.update { grid-column: 1 / -1; background: #eef1f5; color: #344054; }
+.api-test { width: 100%; margin-top: 10px; background: #f2f4f7; color: #344054; font-size: 12px; }
+.badge { border-radius: 999px; padding: 5px 9px; font-size: 11px; white-space: nowrap; }
+.badge.idle { background: #eaecf0; color: #475467; }
+.badge.running { background: #e7f0ff; color: #175cd3; }
+.badge.success { background: #e8f8ef; color: #067647; }
+.badge.error { background: #fff0f0; color: #b42318; }
+#scores { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+#scores span { background: #f2f4f7; border-radius: 7px; padding: 6px 8px; font-size: 12px; }
+.comment { font-size: 13px; line-height: 1.55; margin: 10px 0 0; color: #344054; }
+.comment.korean { color: #475467; margin-top: 4px; }
+.result-label { margin: 12px 0 0; font-size: 12px; font-weight: 650; color: #175cd3; }
+.language-label { display: inline-block; margin-top: 10px; color: #667085; font-size: 11px; }
+.recognized { font-size: 11px; line-height: 1.5; margin: 8px 0 0; color: #667085; white-space: pre-wrap; }
+.usage-stats { margin: 9px 0 0; padding-top: 8px; border-top: 1px solid #eef1f5; color: #667085; font-size: 11px; line-height: 1.45; }
+.history-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.history-header h2 { margin-bottom: 3px; }
+.history-clear { padding: 6px 10px; background: #f2f4f7; color: #475467; font-size: 11px; }
+.history-toggle { width: 100%; margin-top: 9px; padding: 7px 10px; background: #eef4ff; color: #175cd3; font-size: 11px; }
+.history-list { display: grid; gap: 9px; margin-top: 12px; }
+.history-empty { margin: 0; color: #98a2b3; font-size: 12px; }
+.history-item { border: 1px solid #e4e7ec; border-radius: 9px; padding: 10px; background: #fafbfc; }
+.history-item-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 7px; font-size: 12px; font-weight: 650; }
+.history-scores { color: #175cd3; white-space: nowrap; }
+.history-comment { margin: 5px 0 0; color: #344054; font-size: 12px; line-height: 1.45; white-space: pre-wrap; }
+.history-comment.ko { color: #667085; }
+.history-time { margin-top: 6px; color: #98a2b3; font-size: 10px; }
+.archive-note { margin-top: 7px; line-height: 1.5; }
+.disk-backup-status { margin: 9px 0 0; padding: 8px 9px; border-radius: 8px; background: #fff7e8; color: #9a5b00; font-size: 12px; line-height: 1.45; }
+.disk-backup-status.ready { background: #e8f8ef; color: #067647; }
+.disk-backup-status.error { background: #fff0f0; color: #b42318; }
+.archive-actions { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 10px; }
+.archive-actions button { width: 100%; font-size: 12px; }
+.archive-actions .update { grid-column: auto; }
+footer { line-height: 1.5; text-align: center; padding: 2px 8px 10px; }

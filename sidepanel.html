@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>翻译评价助手</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>翻译评价助手</h1>
+        <p>多模型图像识别 · Papago Pro · <span id="version">v-</span></p>
+      </div>
+      <span id="stateBadge" class="badge idle">待机</span>
+    </header>
+
+    <section class="card result status-card">
+      <h2>运行状态</h2>
+      <p id="controlledTab" class="tab-target">当前控制：尚未绑定 Papago 标签页</p>
+      <p id="status">请打开 Papago Pro 评价页并填写 API Key。</p>
+      <p id="resultLabel" class="result-label" hidden>最近一次完成的评价</p>
+      <div id="scores" hidden>
+        <span>翻译 <b id="translationScore">-</b></span>
+        <span>渲染 <b id="renderingScore">-</b></span>
+        <span>置信度 <b id="confidence">-</b></span>
+      </div>
+      <span id="chineseLabel" class="language-label" hidden>中文评价</span>
+      <p id="comment" class="comment"></p>
+      <span id="koreanLabel" class="language-label" hidden>页面填写的韩文评价</span>
+      <p id="koreanComment" class="comment korean"></p>
+      <p id="recognizedText" class="recognized" hidden></p>
+      <p id="apiUsageStats" class="usage-stats">API缓存统计：暂无本机记录</p>
+    </section>
+
+    <section class="actions">
+      <button id="once" class="secondary">只评当前张</button>
+      <button id="start" class="primary">开始连续评价</button>
+      <button id="stop" class="danger" disabled>停止</button>
+      <button id="reloadExtension" class="update">应用本地更新</button>
+    </section>
+
+    <section class="card">
+      <h2>模型与 API 设置</h2>
+      <label>本地归档账号标签
+        <input id="accountLabel" type="text" maxlength="60" value="" placeholder="当前任务账号，例如：账号A、学校账号">
+      </label>
+      <p class="hint">账号名称按当前任务单独保存，新任务不会沿用上一任务的账号。任务编号和翻译方向从当前页面顶部自动读取。</p>
+      <label>翻译方向
+        <select id="languagePair">
+          <option value="ja-zh">日文原文 → 简体中文译文（原模式）</option>
+          <option value="zh-ja">简体中文原文 → 日文译文（新任务）</option>
+          <option value="en-ja">英文原文 → 日文译文</option>
+          <option value="ja-en">日文原文 → 英文译文</option>
+          <option value="en-zh">英文原文 → 简体中文译文</option>
+          <option value="zh-en">简体中文原文 → 英文译文</option>
+        </select>
+      </label>
+      <p class="hint">切换到 Papago 页面时会读取顶部语言标签并自动同步；支持日中、中日、英日、日英、英中、中英。每次启动再次锁定当前页面方向，读取失败会停止。</p>
+      <label>视觉模型
+        <select id="model">
+          <option value="deepseek-flash">DeepSeek V4.1 Flash（官方API）</option>
+          <option value="deepseek-v4-flash-vision-exp">V4 Vision旧名称（兼容）</option>
+          <option value="qwen3.8-flash">Qwen3.8 Flash（阿里云百炼）</option>
+        </select>
+      </label>
+      <label id="deepseekApiKeyLabel">DeepSeek API Key
+        <input id="apiKey" type="password" autocomplete="off" placeholder="sk-...">
+      </label>
+      <label id="qwenApiKeyLabel" hidden>千问百炼 API Key
+        <input id="qwenApiKey" type="password" autocomplete="off" placeholder="sk-...">
+      </label>
+      <label id="qwenEndpointLabel" hidden>千问接口地址
+        <input id="qwenEndpoint" type="url" autocomplete="off" value="https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions">
+      </label>
+      <label>评价模式
+        <select id="qualityMode">
+          <option value="quality">稳定连续（推荐）</option>
+          <option value="thoughtful">轻度思考（单张）</option>
+          <option value="deep">深度分析（疑难单张）</option>
+          <option value="fast">极速省量</option>
+        </select>
+      </label>
+      <p class="hint">连续评价请使用“稳定连续”；思考模式可能先耗完输出长度，只建议单张使用。</p>
+      <label>评论输出
+        <select id="commentMode">
+          <option value="bilingual">中韩双语（页面填韩文）</option>
+          <option value="chinese">仅中文（页面评论留空）</option>
+          <option value="none">不生成评论（最省额度）</option>
+        </select>
+      </label>
+      <p id="providerHint" class="hint">密钥仅保存在本机浏览器的扩展存储中。</p>
+      <button id="testApi" class="api-test">测试当前 API（少量额度）</button>
+    </section>
+
+    <section class="card grid">
+      <h2>连续运行</h2>
+      <label class="check"><input id="backgroundCapture" type="checkbox"> 切换标签页或最小化后继续</label>
+      <p class="hint full-row">扩展加载时一次性声明后台取图权限；此开关只控制是否使用，只连接当前Papago标签页，不会切换页面。</p>
+      <label class="check"><input id="autoAdvance" type="checkbox" checked> 评分后自动切换下一张</label>
+      <label class="check"><input id="pauseOnLowConfidence" type="checkbox"> 低置信度时暂停（建议关闭）</label>
+      <label class="check"><input id="browserArchiveEnabled" type="checkbox" checked> 启用 Edge/Chrome 浏览器详细存档</label>
+      <input id="diskArchiveEnabled" type="checkbox" hidden>
+      <input id="requireDiskBackup" type="checkbox" hidden>
+      <p class="hint full-row">详细记录只保存在当前浏览器配置的扩展数据库中；关闭此开关不会删除已有记录，也不会阻止评价运行。磁盘自动存档已移除。</p>
+      <label>暂停阈值
+        <input id="confidenceThreshold" type="number" min="0" max="1" step="0.01" value="0.72">
+      </label>
+      <label>每张间隔（毫秒）
+        <input id="delayMs" type="number" min="300" max="15000" step="100" value="1200">
+      </label>
+      <label>本次最多处理
+        <input id="maxItems" type="number" min="1" max="7500" value="100">
+      </label>
+    </section>
+
+    <section class="card history-card">
+      <div class="history-header">
+        <div>
+          <h2>评价记录</h2>
+          <p class="hint">只显示当前标签页最近 2 条，全部标签页合计最多保存 50 条；清空这里不会删除长期归档。</p>
+        </div>
+        <button id="clearHistory" class="history-clear">清空</button>
+      </div>
+      <div id="historyList" class="history-list">
+        <p class="history-empty">还没有完成的评价。</p>
+      </div>
+      <button id="toggleHistory" class="history-toggle" hidden>展开更多</button>
+    </section>
+
+    <section class="card archive-card">
+      <h2>Edge/Chrome 浏览器详细归档</h2>
+      <p id="archiveStats" class="hint">正在读取归档统计…</p>
+      <p id="diskBackupStatus" class="disk-backup-status" hidden></p>
+      <p class="hint archive-note">每个 Edge/Chrome 用户配置各有独立数据库，保存文字详情但不保存图片和 API Key。升级同一路径不会删除归档；删除扩展前请先导出 JSON。</p>
+      <div class="archive-actions">
+        <button id="chooseBackupFolder" class="primary" hidden>选择自动备份文件夹</button>
+        <button id="migrateLegacyArchive" class="primary">合并 Luna 旧版本归档</button>
+        <button id="importArchiveJson" class="secondary">导入归档备份（JSON）</button>
+        <input id="archiveImportFile" type="file" accept="application/json,.json" hidden>
+        <button id="exportArchiveHtml" class="secondary">导出审查报告（HTML）</button>
+        <button id="exportArchiveJson" class="update">导出备份（JSON）</button>
+      </div>
+    </section>
+
+    <footer>我更新原文件夹后，点击“应用本地更新”，再刷新一次 Papago 页面即可生效；扩展不会点击最终提交。</footer>
+  </main>
+  <script src="sidepanel.js"></script>
+</body>
+</html>
