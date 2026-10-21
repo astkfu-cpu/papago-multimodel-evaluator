@@ -1,4 +1,4 @@
-import { RULE_VERSION, DEFAULTS, settingsOf, buildRequest, parseResult, canAutoApply, isTransient } from './shared.js';
+import { RULE_VERSION, DEFAULTS, settingsOf, buildRequest, parseResult, canAutoApply, isTransient, formatRetryRequest } from './shared.js';
 import {saveRecord,archiveInfo,records,offlineReport} from './archive.js';
 
 let activeJob=null;
@@ -157,21 +157,31 @@ async function oneRequest(config,body,job) {
     } else {
       const payload=await response.json(); const choice=payload.choices?.[0];text=choice?.message?.content || '';finish=choice?.finish_reason;
     }
-    if(finish==='length' || !text || finish!=='stop') {const error=new Error('模型输出不完整或被截断，不能转成评价结果');error.format=true;throw error;}
+    if(finish==='content_filter')throw new Error('千问内容审核拦截，本题未填入，请人工复核');
+    if(finish==='length' || !text || finish!=='stop') {const error=new Error('模型输出不完整或被截断，不能转成评价结果');error.format=true;error.issues=['返回完整 JSON，不要省略字段；控制理由长度，避免输出被截断'];error.requestId=requestId;throw error;}
     let result;
-    try {result=parseResult(text);} catch(error) {error.format=true;throw error;}
+    try {result=parseResult(text);} catch(error) {error.format=true;error.requestId=requestId;throw error;}
     return {...result,requestId};
   } finally {clearTimeout(timer);job.controller.signal.removeEventListener('abort',abort);}
 }
 async function request(config,body,job) {
-  for(let attempt=0;;attempt++) {
+  let transientAttempts=0,formatRetries=0,currentBody=body;
+  for(;;) {
     alive(job);
-    try{return await oneRequest(config,body,job);}
+    try{return {...await oneRequest(config,currentBody,job),formatRetries};}
     catch(error) {
       alive(job);
-      if (!error.transient || attempt>=2) throw error;
-      await setStatus(job.tabId,{message:`千问暂时故障，第 ${attempt+1}/2 次重试；原表尚未填入。`});
-      await pause((attempt+1)*2500+Math.random()*700);
+      if(error.format) {
+        if(formatRetries>=2)throw new Error(`模型格式自动修复 2 次后仍不完整，本题未填入。${error.message}${error.requestId?' · request_id='+error.requestId:''}`);
+        formatRetries++;
+        currentBody=formatRetryRequest(body,error,formatRetries);
+        await setStatus(job.tabId,{message:`模型返回格式不完整，正在自动修复 ${formatRetries}/2；保留完整图片重新核对，本题尚未填入。`});
+        await pause(400);alive(job);continue;
+      }
+      if (!error.transient || transientAttempts>=2) throw error;
+      transientAttempts++;
+      await setStatus(job.tabId,{message:`千问暂时故障，第 ${transientAttempts}/2 次重试；原表尚未填入。`});
+      await pause(transientAttempts*2500+Math.random()*700);
     }
   }
 }
@@ -185,12 +195,13 @@ async function evaluate(snapshot,config,job) {
   let result=hit?.result;
   if(!result) {
     await setStatus(job.tabId,{message:'千问正在比较完整原图、A 图和 B 图；蓝色应用工具栏不参与优劣判断。'});
-    try {result=await request(config,buildRequest(config,snapshot.languagePair,images),job);}
-    catch(error) {if(!error.format)throw error;result=null;}
-    if (!result || !canAutoApply(result,config)) {
+    result=await request(config,buildRequest(config,snapshot.languagePair,images),job);
+    if (!canAutoApply(result,config)) {
       alive(job);
       await setStatus(job.tabId,{message:'正在复核整图与覆盖全图的放大分块，未向原表填入任何判断。'});
+      const initialFormatRetries=result.formatRetries;
       result=await request(config,buildRequest(config,snapshot.languagePair,await enlargedSections(images),true),job);
+      result.formatRetries+=initialFormatRetries;
       result.refined=true;
     }
     alive(job);

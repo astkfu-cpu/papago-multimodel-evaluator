@@ -34,13 +34,16 @@ const executable=process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || 'C:\\Program
     const body=JSON.parse(init.body),imageParts=body.messages[1]?.content?.filter(x=>x.type==='image_url') || [];
     const sizes=[],hashes=[];
     for(const part of imageParts){const blob=await (await nativeFetch(part.image_url.url)).blob();const hash=await crypto.subtle.digest('SHA-256',await blob.arrayBuffer());hashes.push([...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join(''));const image=await createImageBitmap(blob);sizes.push([image.width,image.height]);image.close();}
-    apiCalls.push({sizes,hashes,labels:body.messages[1]?.content?.filter(x=>x.type==='text').map(x=>x.text),metadataLeak:JSON.stringify(body).includes('TEST-EVALUATOR') || JSON.stringify(body).includes('sys/s')});
+    apiCalls.push({sizes,hashes,labels:body.messages[1]?.content?.filter(x=>x.type==='text').map(x=>x.text),feedback:body.messages.length>2?body.messages.at(-1).content[0].text:'',metadataLeak:JSON.stringify(body).includes('TEST-EVALUATOR') || JSON.stringify(body).includes('sys/s')});
     if(mockMode==='401')return new Response(JSON.stringify({error:{message:'invalid API key'}}),{status:401,headers:{'content-type':'application/json'}});
     if(mockMode==='429' && apiCalls.length<3)return new Response('{}',{status:429,headers:{'content-type':'application/json'}});
     if(mockMode==='delayed')await new Promise((resolve,reject)=>{const t=setTimeout(resolve,2500);init.signal.addEventListener('abort',()=>{clearTimeout(t);reject(new Error('aborted'));},{once:true});});
     const obj={translation:'A',rendering:'B',translation_reason:'A 的价格与优惠条件更准确；测试依据。',rendering_reason:'B 的字号和布局更贴近完整原图；测试依据。',source_summary:'商品标签、优惠条件及底部完整小字。',a_evidence:'完整 A 图可见价格与条件。',b_evidence:'完整 B 图可见布局和底部小字。',a_state:'normal',b_state:'normal',confidence:0.96,needs_review:false,review_reason:''};
     if(mockMode==='uncertain'){obj.needs_review=true;obj.translation=null;obj.confidence=0.99;obj.a_state='uncertain';obj.review_reason='细字证据不足，需人工处理。';}
-    const raw=JSON.stringify(obj);const chunks=[{choices:[{delta:{reasoning_content:'PRIVATE TEST REASONING'},finish_reason:null}]},{choices:[{delta:{content:raw.slice(0,raw.length/2)},finish_reason:null}]},{choices:[{delta:{content:raw.slice(raw.length/2)},finish_reason:'stop'}]}];
+    if(mockMode==='format-state' && apiCalls.length<3)obj.a_state='ok';
+    if((mockMode==='format-reason' && apiCalls.length===1) || mockMode==='format-persistent')delete obj.rendering_reason;
+    const raw=mockMode==='format-null' && apiCalls.length===1?'null':JSON.stringify(obj);
+    const chunks=mockMode==='moderated'?[{error:{message:'DataInspectionFailed: Output data may contain inappropriate content.'}}]:[{choices:[{delta:{reasoning_content:'PRIVATE TEST REASONING'},finish_reason:null}]},{choices:[{delta:{content:raw.slice(0,raw.length/2)},finish_reason:null}]},{choices:[{delta:{content:raw.slice(raw.length/2)},finish_reason:mockMode==='filtered'?'content_filter':'stop'}]}];
     const encoded=new TextEncoder().encode(chunks.map(x=>'data: '+JSON.stringify(x)+'\r\n\r\n').join('')+'data: [DONE]\n\n');
     return new Response(new ReadableStream({start(controller){for(let n=0;n<encoded.length;n+=37)controller.enqueue(encoded.slice(n,n+37));controller.close();}}),{status:200,headers:{'content-type':'text/event-stream','x-request-id':'TEST-REQUEST-ID'}});
    };
@@ -93,6 +96,25 @@ const executable=process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || 'C:\\Program
   await mode('401');assert((await call('PW_START',{continuous:false,force:true})).ok);state=await finished(['paused']);assert(state.message.includes('401'),state.message);assert.equal(Object.keys((await data()).judgments).length,3);assert.equal((await worker.evaluate(()=>apiCalls)).length,1);
   console.log('PASS authentication failure does not retry, fill, or become tie');
 
+  for(const [scenario,attempts,field] of [['format-state',3,'a_state'],['format-null',2,'评价对象'],['format-reason',2,'rendering_reason']]) {
+    await mode(scenario);assert((await call('PW_START',{continuous:false,force:true})).ok);state=await finished(['ready']);
+    calls=await worker.evaluate(()=>apiCalls);assert.equal(calls.length,attempts);assert.equal(state.result.formatRetries,attempts-1);
+    assert(calls.every(x=>x.sizes.length===3));assert(calls.slice(1).every(x=>x.feedback.includes(field)));
+    assert(calls.every(x=>JSON.stringify(x.hashes)===JSON.stringify(calls[0].hashes)));
+    assert.equal(Object.keys((await data()).judgments).length,3);assert(state.result.rendering_reason.length>2);
+    console.log('PASS targeted full-image recovery '+scenario+' without filling or inventing missing fields');
+  }
+  const countBeforeFailure=(await call('PW_ARCHIVE_INFO')).count;
+  await mode('format-persistent');assert((await call('PW_START',{continuous:true,force:true})).ok);state=await finished(['paused']);
+  assert(state.message.includes('自动修复 2 次'));assert.equal((await worker.evaluate(()=>apiCalls)).length,3);
+  assert.equal(Object.keys((await data()).judgments).length,3);assert.equal((await call('PW_ARCHIVE_INFO')).count,countBeforeFailure);
+  console.log('PASS exhausted format recovery stops after three attempts without false archive or sheet judgment');
+  for(const scenario of ['moderated','filtered']) {
+    await mode(scenario);assert((await call('PW_START',{continuous:true,force:true})).ok);await finished(['paused']);
+    assert.equal((await worker.evaluate(()=>apiCalls)).length,1);assert.equal(Object.keys((await data()).judgments).length,3);
+  }
+  console.log('PASS content moderation and content_filter stop immediately without format retries');
+
   await mode('uncertain');assert((await call('PW_START',{continuous:true,force:true})).ok);state=await finished(['review']);
   calls=await worker.evaluate(()=>apiCalls);assert.equal(calls.length,2);assert.equal(calls[0].sizes.length,3);assert.equal(calls[1].sizes.length,15);
   assert.equal((await call('PW_APPLY')).ok,false);assert.equal(Object.keys((await data()).judgments).length,3);
@@ -144,7 +166,7 @@ const executable=process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || 'C:\\Program
   }));
   assert.equal(restored.count,count+101);
   console.log('PASS archive exceeds 100 records and survives closing/reopening the isolated browser profile');
-  fs.writeFileSync(path.join(work,'e2e-summary.json'),JSON.stringify({tests:13,passed:true,checkpointDoesNotBlock:true,batchLimitVerified:true,directionSwitchVerified:true,mockAPI:true,liveAPI:false,nativeImages:true,wholeImage:true,originalImageBytesVerified:true,assignmentGuardVerified:true,archiveRecords:restored.count,browserRestartVerified:true,originalPackageUnchanged:true},null,2));
+  fs.writeFileSync(path.join(work,'e2e-summary.json'),JSON.stringify({version:JSON.parse(fs.readFileSync(path.join(extension,'manifest.json'),'utf8')).version,tests:18,passed:true,formatRecoveryVerified:true,formatRecoveryBounded:true,moderationNotRetried:true,checkpointDoesNotBlock:true,batchLimitVerified:true,directionSwitchVerified:true,mockAPI:true,liveAPI:false,nativeImages:true,wholeImage:true,originalImageBytesVerified:true,assignmentGuardVerified:true,archiveRecords:restored.count,browserRestartVerified:true,originalPackageUnchanged:true},null,2));
   console.log('PASS browser sheet progress survives reload; official package unchanged. All browser checks passed with mocked Qwen responses.');
  }finally{await context.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

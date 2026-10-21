@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {settingsOf,endpointURL,parseResult,canAutoApply,buildRequest,RUBRIC} from './shared.js';
+import {settingsOf,endpointURL,parseResult,canAutoApply,buildRequest,RUBRIC,OUTPUT_SCHEMA,formatRetryRequest} from './shared.js';
 import {offlineReport} from './archive.js';
 const base=()=>({translation:'A',rendering:'B',translation_reason:'A 的金额和条件更准确',rendering_reason:'B 的文字布局更贴近原图',source_summary:'商品优惠条件及小字',a_evidence:'可见译文完整',b_evidence:'可见译文有金额错误',a_state:'normal',b_state:'normal',confidence:0.91,needs_review:false,review_reason:''});
 test('two dimensions can have different winners; invalid/absent output never becomes tie',()=>{
@@ -38,4 +38,27 @@ test('offline report escapes model text and excludes unsafe image links',()=>{
   const result={...base(),translation_reason:'<script>alert("unsafe")</script>',ruleVersion:'test'};
   const html=offlineReport([{evaluator:'test',languagePair:'EN_JA',index:1,total:800,pairId:'p1',sheetId:'test',createdAt:'now',updatedAt:'now',applied:false,result,images:[{side:'a',url:'javascript:alert(1)'}]}]);
   assert(html.includes('&lt;script&gt;'));assert(!html.includes('<script>'));assert(!html.includes('href="javascript:'));
+});
+test('unambiguous JSON wrappers and enum casing preserve model evidence and winners',()=>{
+  const result=base();
+  for(const value of [result,[result],{result},{evaluation:result},JSON.stringify(result)])assert.deepEqual(parseResult(JSON.stringify(value)),result);
+  assert.deepEqual(parseResult('```json\n'+JSON.stringify({...result,a_state:' NORMAL ',translation:' a ',rendering:'b'})+'\n```'),result);
+  for(const value of [[result,result],{result,evaluation:{...result,translation:'B'}},null,'refusal'])assert.throws(()=>parseResult(JSON.stringify(value)));
+});
+test('all three reported format errors are actionable; no states or reasons are invented',()=>{
+  for(const patch of [{a_state:'ok'}, {b_state:null}, {rendering_reason:''}, {rendering_reason:undefined}, {needs_review:'false'}, {confidence:'0.99'}]) {
+    assert.throws(()=>parseResult(JSON.stringify({...base(),...patch})),error=>error.format===true && error.issues.length>0);
+  }
+  assert.throws(()=>parseResult('null'),error=>error.format===true);
+  try {parseResult(JSON.stringify({...base(),a_state:undefined,rendering_reason:undefined}));assert.fail('must reject');}
+  catch(error){assert(error.issues.some(x=>x.includes('a_state')));assert(error.issues.some(x=>x.includes('rendering_reason')));}
+});
+test('targeted format recovery retains whole images, configured thinking and full required contract',()=>{
+  const original=buildRequest(settingsOf(), 'JA_EN', ['source','A','B'].map(data=>({data})));
+  const before=JSON.stringify(original),retry=formatRetryRequest(original,{issues:['rendering_reason missing']},1);
+  assert.equal(JSON.stringify(original),before);assert.deepEqual(retry.messages[1],original.messages[1]);
+  assert.equal(retry.reasoning_effort,'low');assert.equal(retry.response_format.type,'json_object');
+  assert(retry.messages.at(-1).content[0].text.includes('rendering_reason missing'));
+  for(const name of OUTPUT_SCHEMA.required)assert(original.messages[1].content.at(-1).text.includes(name));
+  assert(!RUBRIC.includes('A|tie|B or null'));
 });
