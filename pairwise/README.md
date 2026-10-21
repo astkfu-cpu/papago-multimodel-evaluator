@@ -12,13 +12,15 @@
 2. 开启“允许访问文件 URL”，完整解压自己的获准离线任务包，再打开 index.html。
 3. 配置自己的千问 API Key 和官方接口；先测试接口，再分析单张并核对完整内容和两项理由。
 4. 按需确认填入或连续运行。低置信度、格式恢复失败及页面不一致时暂停。
-5. 模型归档在浏览器 IndexedDB 中长期保存，按需导出 HTML；正式结果仍由原表导出。
+5. 模型归档在浏览器 IndexedDB 中长期保存，按需分批导出 HTML 或插件 JSON 备份；正式结果仍由原表导出。
 6. 更新时先备份，覆盖同一扩展目录后重新加载并刷新原表；不要卸载或换目录安装。
 
 ## 测试
 
-`node --test test-shared.mjs` 不需要 API Key。浏览器测试需显式配置 PAPAGO_PAIRWISE_PACKAGE；旧版升级检查需 PAPAGO_PAIRWISE_PREVIOUS_ZIP 和 PYTHON_EXECUTABLE。测试使用隔离配置和模拟接口，私有任务包不随仓库分发。
+`node --test test-shared.mjs` 不需要 API Key。浏览器测试默认使用仓库自制 demo/；可配置 PAPAGO_PAIRWISE_PACKAGE 使用另行获准的测试包。升级测试默认从公开 1.0.2 ZIP 覆盖更新，Python 可用 PYTHON_EXECUTABLE 指定。测试使用隔离配置和模拟接口，私有任务包不随仓库分发。
 
 ## 历史维护
 
 1.0.0 引入整图比较与长期归档；1.0.1 改进批量运行进度控制；1.0.2 增强结果字段约束、无歧义包装兼容和有界格式恢复，并核验覆盖升级后旧记录及设置保留。Chrome version_name 中的 public.1 标明公开模板适配，版本导入时间以实际公开提交为准。
+
+当前公开版本 1.1.0-public.1：切题时隐藏不匹配建议并禁用填入；置信度明确为模型自报；增加只补入缺失记录的插件归档恢复。见 [备份恢复](../docs/ARCHIVE_BACKUP.md) 和 [独立演示](../demo/README.md)。

@@ -1,25 +1,25 @@
 const {chromium}=require('playwright');
 const fs=require('fs'),path=require('path'),assert=require('assert/strict'),{execFileSync}=require('child_process');
-const work=path.resolve(__dirname,'../tmp/pairwise-development');
+const work=path.resolve(__dirname,'../tmp/pairwise-development');fs.mkdirSync(work,{recursive:true});
 const stage=fs.mkdtempSync(path.join(work,'upgrade-extension-'));
 const profile=fs.mkdtempSync(path.join(work,'upgrade-profile-'));
-const oldZip=process.env.PAPAGO_PAIRWISE_PREVIOUS_ZIP;
+const oldZip=process.env.PAPAGO_PAIRWISE_PREVIOUS_ZIP || path.resolve(__dirname,'../dist/papago-pairwise-evaluator-1.0.2.zip');
 if(!oldZip)throw new Error('Set PAPAGO_PAIRWISE_PREVIOUS_ZIP to an authorized v1.0.1 package.');
-const python=process.env.PYTHON_EXECUTABLE || 'python';
+const python=process.env.PYTHON_EXECUTABLE || (process.platform==='win32'?'python':'python3');
 execFileSync(python,['-X','utf8','-c',`import sys,zipfile,pathlib
 with zipfile.ZipFile(sys.argv[1]) as z:
  for name in z.namelist():
   p=pathlib.PurePosixPath(name)
-  if len(p.parts)==2 and p.parts[0]=='papago-pairwise-evaluator':
+  if len(p.parts)==2 and p.name in ['manifest.json','background.js','content.js','shared.js','archive.js','sidepanel.html','sidepanel.css','sidepanel.js']:
    pathlib.Path(sys.argv[2],p.name).write_bytes(z.read(name))`,oldZip,stage]);
-const launch={headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',ignoreDefaultArgs:['--disable-extensions'],args:['--disable-extensions-except='+stage,'--load-extension='+stage]};
+const launch={headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || (process.platform==='win32'?'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe':chromium.executablePath()),ignoreDefaultArgs:['--disable-extensions'],args:['--disable-extensions-except='+stage,'--load-extension='+stage]};
 (async()=>{
  let context=await chromium.launchPersistentContext(profile,launch);
  try {
   let worker=context.serviceWorkers()[0] || await context.waitForEvent('serviceworker');const id=worker.url().split('/')[2];
   let page=await context.newPage();await page.goto(`chrome-extension://${id}/sidepanel.html`);
   const before=await page.evaluate(async()=>{
-    if(chrome.runtime.getManifest().version!=='1.0.1')throw new Error('Expected actual old build');
+    if(!['1.0.1','1.0.2'].includes(chrome.runtime.getManifest().version))throw new Error('Expected actual archived build');
     const archive=await import(chrome.runtime.getURL('archive.js'));
     const settings={apiKey:'UPGRADE-TEST-DUMMY-KEY',model:'qwen3.8-flash',effort:'medium',batchLimit:800,confidenceThreshold:0.93,commentMode:'zh'};
     await chrome.storage.local.set({settings});
@@ -40,9 +40,9 @@ const launch={headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECU
     const archive=await import(chrome.runtime.getURL('archive.js')),rows=await archive.records();
     return {rows,settings:(await chrome.storage.local.get('settings')).settings,version:chrome.runtime.getManifest().version,html:archive.offlineReport(rows)};
   });
-  assert.equal(after.version,'1.0.2');assert.deepEqual(after.rows,before.rows);assert.deepEqual(after.settings,before.settings);
+  assert.equal(after.version,'1.1.0');assert.deepEqual(after.rows,before.rows);assert.deepEqual(after.settings,before.settings);
   assert(after.html.includes('原来的渲染理由 4'));assert(after.html.includes('原有疑难记录'));assert(!after.html.includes(before.settings.apiKey));
-  fs.writeFileSync(path.join(work,'upgrade-summary.json'),JSON.stringify({passed:true,from:'1.0.1',to:after.version,oldRecords:5,recordsExactlyPreserved:true,settingsExactlyPreserved:true,sameExtensionId:true,oldReviewRecordExportable:true},null,2));
-  console.log('PASS actual 1.0.1 to 1.0.2 overwrite upgrade: same extension ID, all old records/reasons/status/timestamps and settings preserved, old review record exportable');
+  fs.writeFileSync(path.join(work,'upgrade-summary.json'),JSON.stringify({passed:true,from:'1.0.2',to:after.version,oldRecords:5,recordsExactlyPreserved:true,settingsExactlyPreserved:true,sameExtensionId:true,oldReviewRecordExportable:true},null,2));
+  console.log('PASS actual archived 1.0.2 to 1.1.0 overwrite upgrade: same extension ID, all old records/reasons/status/timestamps and settings preserved, old review record exportable');
  }finally {await context.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

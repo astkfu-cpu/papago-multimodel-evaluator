@@ -3,8 +3,7 @@ const path=require('path'),fs=require('fs'),assert=require('assert/strict'),cryp
 const {pathToFileURL}=require('url');
 const extension=__dirname;
 const work=path.resolve(__dirname,'../tmp/pairwise-development');fs.mkdirSync(work,{recursive:true});
-const source=process.env.PAPAGO_PAIRWISE_PACKAGE;
-if(!source)throw new Error('Set PAPAGO_PAIRWISE_PACKAGE to your authorized local test package; no customer fixtures are distributed.');
+const source=process.env.PAPAGO_PAIRWISE_PACKAGE || path.resolve(__dirname,'../demo');
 const original=fs.readFileSync(path.join(source,'index.html'),'utf8');const originalHash=crypto.createHash('sha256').update(original).digest('hex');
 const dataset=JSON.parse(original.match(/<script id="tasks" type="application\/json">([\s\S]*?)<\/script>/)[1]);
 const first=dataset.pairs.find(x=>x.langpair==='EN_JA'),fixture=path.join(work,'fixture');
@@ -15,7 +14,7 @@ const html=original.replace(/(<script id="tasks" type="application\/json">)[\s\S
 fs.writeFileSync(path.join(fixture,'index.html'),html);
 const url=pathToFileURL(path.join(fixture,'index.html')).href;
 const profile=fs.mkdtempSync(path.join(work,'e2e-profile-'));
-const executable=process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
+const executable=process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || (process.platform==='win32'?'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe':chromium.executablePath());
 (async()=>{
  const launchOptions={headless:true,executablePath:executable,ignoreDefaultArgs:['--disable-extensions'],args:['--disable-extensions-except='+extension,'--load-extension='+extension],viewport:{width:1000,height:650},acceptDownloads:true};
  let context=await chromium.launchPersistentContext(profile,launchOptions);
@@ -23,7 +22,7 @@ const executable=process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || 'C:\\Program
  try {
   worker=context.serviceWorkers()[0] || await context.waitForEvent('serviceworker',{timeout:20000});const id=worker.url().split('/')[2];
   if(!await worker.evaluate(()=>chrome.extension.isAllowedFileSchemeAccess())){
-   const manager=await context.newPage();await manager.goto('edge://extensions/');await manager.evaluate(id=>new Promise((resolve,reject)=>chrome.developerPrivate.updateExtensionConfiguration({extensionId:id,fileAccess:true},()=>chrome.runtime.lastError?reject(new Error(chrome.runtime.lastError.message)):resolve())),id);await manager.close();
+   const manager=await context.newPage();await manager.goto(executable.toLowerCase().includes('msedge')?'edge://extensions/':'chrome://extensions/');await manager.evaluate(id=>new Promise((resolve,reject)=>chrome.developerPrivate.updateExtensionConfiguration({extensionId:id,fileAccess:true},()=>chrome.runtime.lastError?reject(new Error(chrome.runtime.lastError.message)):resolve())),id);await manager.close();
   }
   await worker.evaluate(async()=>{
    await chrome.storage.local.set({settings:{apiKey:'TEST-KEY-NEVER-REAL',model:'qwen3.8-flash',effort:'low',batchLimit:2},cache:[]});
@@ -58,7 +57,7 @@ const executable=process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || 'C:\\Program
   await dashboard.waitForFunction(()=>document.querySelector('#context')?.textContent.includes('TEST-EVALUATOR'));
   const call=(type,extra={})=>dashboard.evaluate(async payload=>chrome.runtime.sendMessage(payload),{type,tabId,...extra});
   const until=async predicate=>{const end=Date.now()+60000;while(Date.now()<end){if(await predicate())return;await new Promise(resolve=>setTimeout(resolve,200));}throw new Error('Timed out waiting for browser state');};
-  const finished=async expected=>{await until(async()=>{const r=await call('PW_STATUS');return !r.status?.running && expected.includes(r.status?.phase);});return (await call('PW_STATUS')).status;};
+  const finished=async expected=>{await until(async()=>{const r=await call('PW_STATUS');if(!r.status?.running && !expected.includes(r.status?.phase))throw new Error('Unexpected phase '+JSON.stringify(r.status)+'; page '+await page.locator('#scope-text').textContent());return !r.status?.running && expected.includes(r.status?.phase);});return (await call('PW_STATUS')).status;};
   const data=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('sheetjudge:TEST-PAPAGO-PAIRWISE-20261014')));
   const mode=value=>worker.evaluate(value=>{mockMode=value;apiCalls=[];},value);
 
@@ -71,6 +70,14 @@ const executable=process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || 'C:\\Program
   assert(!JSON.stringify(state).includes('PRIVATE TEST REASONING'));assert(!(await call('PW_SETTINGS')).settings.apiKey);
   await dashboard.locator('#result-section').waitFor({state:'visible'});await dashboard.screenshot({path:path.join(work,'sidepanel-ready.png'),fullPage:true});
   console.log('PASS complete native images beyond viewport, two independent reasons, no automatic manual fill, key/engine metadata isolated');
+
+  await page.locator('#next').click();
+  await dashboard.locator('#result-section').waitFor({state:'hidden'});
+  assert(await dashboard.locator('#apply').isDisabled());assert.equal((await call('PW_APPLY')).ok,false);
+  assert.equal(Object.keys((await data()).judgments).length,0);
+  await page.locator('#prev').click();await dashboard.locator('#result-section').waitFor({state:'visible'});
+  assert((await dashboard.locator('#confidence').textContent()).includes('模型自评置信度'));
+  console.log('PASS manual navigation immediately hides mismatched advice and disables filling; backend independently rejects it');
 
   assert((await call('PW_APPLY')).ok);await page.waitForFunction(()=>document.querySelector('#pair-meta').textContent.includes('2 / 8'));
   assert.deepEqual([(await data()).judgments.test0001.translation,(await data()).judgments.test0001.rendering],['A','B']);
@@ -87,6 +94,7 @@ const executable=process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || 'C:\\Program
   await duplicate.close();console.log('PASS duplicate sheet blocks analysis and filling');
 
   await page.locator('#scope').click();await page.locator('#langpair-list input[value="JA_EN"]').uncheck();await page.locator('#dlg-evaluator button[value=ok]').click();
+  await page.waitForFunction(()=>document.querySelector('#scope-text').textContent.trim()==='EN_JA');
   assert((await call('PW_START',{continuous:false,force:true})).ok);state=await finished(['paused']);assert(state.message.includes('预选语言对'));
   await page.locator('#scope').click();await page.locator('#langpair-list input[value="JA_EN"]').check();await page.locator('#dlg-evaluator button[value=ok]').click();
   await page.waitForFunction(()=>!document.querySelector('#dlg-evaluator').open && document.querySelector('#scope-text').textContent.includes('JA_EN'));
@@ -155,18 +163,37 @@ const executable=process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || 'C:\\Program
   await dashboard.evaluate(async()=>{
     const archive=await import(chrome.runtime.getURL('archive.js'));const rows=await archive.records();const sample=rows[0];
     const snapshot={url:sample.pageURL,sheetId:sample.sheetId,evaluator:sample.evaluator,scope:sample.scope,pairId:sample.pairId,index:sample.index,total:sample.total,languagePair:sample.languagePair,images:sample.images};
-    for(let i=0;i<101;i++){const result={...sample.result};delete result.archiveId;await archive.saveRecord({...snapshot,pairId:'ARCHIVE-RETENTION-TEST-'+i},result,false);}
+    for(let i=0;i<501;i++){const result={...sample.result};delete result.archiveId;await archive.saveRecord({...snapshot,pairId:'ARCHIVE-RETENTION-TEST-'+i},result,false);}
   });
-  assert.equal((await call('PW_ARCHIVE_INFO')).count,count+101);
+  assert.equal((await call('PW_ARCHIVE_INFO')).count,count+501);
+  const recovery=await dashboard.evaluate(async()=>{
+    const a=await import(chrome.runtime.getURL('archive.js')),b=await import(chrome.runtime.getURL('backup.js'));
+    const before=await a.records(),settings=(await chrome.storage.local.get('settings')).settings;
+    const first=await a.exportBatch({},null,500,'json','1.1.0'),second=await a.exportBatch({},first.next,500,'json','1.1.0');
+    if(first.count!==500 || !first.next || first.count+second.count!==before.length || second.next)throw new Error('Cursor batches missing records');
+    const backup=b.backupOf(before,'1.1.0');
+    const preview=await a.restoreBackup(backup);if(preview.existing!==before.length || preview.added)throw new Error('Duplicate preview failed');
+    const conflict=structuredClone(backup);conflict.records[0].result.rendering_reason='changed incoming reason';
+    const conflicts=await a.restoreBackup(conflict,true);if(conflicts.conflicts!==1 || conflicts.added)throw new Error('Conflict handling failed');
+    if(JSON.stringify(await a.records())!==JSON.stringify(before))throw new Error('Existing records overwritten');
+    await new Promise((resolve,reject)=>{const r=indexedDB.open('papago-pairwise-assistant-archive',1);r.onsuccess=()=>{const db=r.result,tx=db.transaction('records','readwrite');tx.objectStore('records').clear();tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>reject(tx.error);};});
+    const dry=await a.restoreBackup(backup);if(dry.added!==before.length || (await a.archiveInfo()).count)throw new Error('Preview modified storage');
+    const restored=await a.restoreBackup(backup,true);
+    if(JSON.stringify(b.backupOf(await a.records(),'').records)!==JSON.stringify(b.backupOf(before,'').records))throw new Error('Restore lost reasons/status');
+    if(JSON.stringify((await chrome.storage.local.get('settings')).settings)!==JSON.stringify(settings))throw new Error('Settings changed during recovery');
+    if(JSON.stringify(backup).includes(settings.apiKey))throw new Error('Secret in backup');
+    return {restored:restored.added,batches:2,duplicates:preview.existing,conflicts:conflicts.conflicts};
+  });
+  console.log('PASS bounded cursor batches, dry-run recovery, duplicate/conflict preservation, and restore without settings/key changes',recovery);
   await context.close();context=await chromium.launchPersistentContext(profile,launchOptions);
   worker=context.serviceWorkers()[0] || await context.waitForEvent('serviceworker',{timeout:20000});
   const restored=await worker.evaluate(()=>new Promise((resolve,reject)=>{
     const request=indexedDB.open('papago-pairwise-assistant-archive',1);
     request.onsuccess=()=>{const db=request.result;const count=db.transaction('records','readonly').objectStore('records').count();count.onsuccess=()=>{db.close();resolve({count:count.result});};count.onerror=()=>reject(count.error);};request.onerror=()=>reject(request.error);
   }));
-  assert.equal(restored.count,count+101);
+  assert.equal(restored.count,count+501);
   console.log('PASS archive exceeds 100 records and survives closing/reopening the isolated browser profile');
-  fs.writeFileSync(path.join(work,'e2e-summary.json'),JSON.stringify({version:JSON.parse(fs.readFileSync(path.join(extension,'manifest.json'),'utf8')).version,tests:18,passed:true,formatRecoveryVerified:true,formatRecoveryBounded:true,moderationNotRetried:true,checkpointDoesNotBlock:true,batchLimitVerified:true,directionSwitchVerified:true,mockAPI:true,liveAPI:false,nativeImages:true,wholeImage:true,originalImageBytesVerified:true,assignmentGuardVerified:true,archiveRecords:restored.count,browserRestartVerified:true,originalPackageUnchanged:true},null,2));
+  fs.writeFileSync(path.join(work,'e2e-summary.json'),JSON.stringify({version:JSON.parse(fs.readFileSync(path.join(extension,'manifest.json'),'utf8')).version,tests:20,passed:true,formatRecoveryVerified:true,formatRecoveryBounded:true,moderationNotRetried:true,checkpointDoesNotBlock:true,batchLimitVerified:true,directionSwitchVerified:true,mockAPI:true,liveAPI:false,nativeImages:true,wholeImage:true,originalImageBytesVerified:true,assignmentGuardVerified:true,archiveRecords:restored.count,browserRestartVerified:true,originalPackageUnchanged:true},null,2));
   console.log('PASS browser sheet progress survives reload; official package unchanged. All browser checks passed with mocked Qwen responses.');
  }finally{await context.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

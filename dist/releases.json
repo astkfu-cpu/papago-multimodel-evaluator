@@ -35,5 +35,42 @@
       "README.md": "72b622f347659d92713f0ed8f98813a48cf528bfba38a1682b29906ffb8ec006",
       "RULES.md": "842fe66b17f29cf0cd4a7bb6bfa5748f32b90d9c846544209eb09f5c496070eb"
     }
+  },
+  {
+    "module": "pairwise",
+    "version": "1.1.0",
+    "published_on": "2026-10-21",
+    "filename": "papago-pairwise-evaluator-1.1.0.zip",
+    "sha256": "e1e8bbf66862b1152a5314f7974d6a304f9f12eb5f20a1d98fe4542ceb58367c",
+    "source_files_sha256": {
+      "manifest.json": "77fba57d9273033864610304e2d563883e06f9af544a6447486382bcb6b8ced3",
+      "background.js": "401ad4ce3c5a674bcc5ed86069a192e45f15fc164ab90baf3e29b1038965bd1c",
+      "content.js": "6edb8596e2dc6e463bc38687e8917435efd268142273149b35ef96028a94427a",
+      "shared.js": "77113a41cedc3094488ca9dc1d00aa842393dbd4e5fa7804d2643f9114ecff78",
+      "archive.js": "a38a41b1486b8744cd118d7fc86b6ed864dbd9e60c343098d2ceb95679b83100",
+      "backup.js": "a79e71810a68398d8af95b7b5738a73e5ab3bddeb3904c0560b91a7e829bb793",
+      "sidepanel.html": "2cd6731b269452e03f13482404b3c09482a57fbde5aaf19113156c7e1fab0e63",
+      "sidepanel.css": "2062cf725c87dc1db4e5e42a6cd2c71548d0a0fa042fc5b5246e9b300b742628",
+      "sidepanel.js": "aaa198541e1cb857190ffbc4789f74b9e5c3a2a40c19b22aa6cd9f2b8743fd41",
+      "README.md": "7ca79953b49f9a8876516b1a7c70355239714fce9ee1039370839fcb8a2f929e",
+      "RULES.md": "842fe66b17f29cf0cd4a7bb6bfa5748f32b90d9c846544209eb09f5c496070eb"
+    }
+  },
+  {
+    "module": "demo",
+    "version": "1.0.0",
+    "published_on": "2026-10-21",
+    "filename": "papago-public-demo-1.0.0.zip",
+    "sha256": "68bfcd2d0d1713a0cf7a0f8444d43cd7d1c47c1b0b13ff8c88d119dea30f1190",
+    "source_files_sha256": {
+      "index.html": "1bef70168025c42c89d9b77d64e68084623e017c65cfc7cb00d7809946c3b4f8",
+      "README.md": "f06ed8832dc4205f217d9ce40928804210b9551a7fd57713f1b09c1fce90a97c",
+      "src/EN_JA/test.jpg": "683bdcc84954fc1ec14aea1b33f0a182032e1c8d63873912ef170e1d93bef3f8",
+      "src/JA_EN/test.jpg": "c0f68624cbb7c5f74d267d9d4db29bf4106a65af418669c053b596acfa8e6fdf",
+      "sys/a/EN_JA/test.jpg": "12952599ac1cff3df646a4a6280261824815a73a2ab104288b3aa555322e32e0",
+      "sys/a/JA_EN/test.jpg": "c509799597add3771df1d2649cdcda2dfc85cb38915b60e8ab2852a0ad493904",
+      "sys/b/EN_JA/test.jpg": "65d9f137b76e002de7759cca11574821b4dd77ae20257e445fb9c53501bd51d7",
+      "sys/b/JA_EN/test.jpg": "b68d65027173031dc560cbec3e22e78f72fb3fb781526af4d40eff4c0c45dcea"
+    }
   }
 ]

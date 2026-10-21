@@ -9,7 +9,10 @@
     "test:e2e": "node test-archive.cjs && node test-browser-crop.cjs",
     "test:all": "npm run test:unit && npm run test:e2e",
     "test:absolute": "node test-static.mjs && node test-api-cache.mjs && node test-highlight-detector.mjs && node test-target-pipeline.mjs",
-    "test:pairwise": "node --test pairwise/test-shared.mjs"
+    "test:pairwise": "node --test pairwise/test-shared.mjs pairwise/test-backup.mjs",
+    "test:demo": "node pairwise/test-browser.cjs && node pairwise/test-archive-ui.cjs",
+    "verify:releases": "node scripts/verify-releases.mjs",
+    "test:upgrade": "node pairwise/test-upgrade.cjs"
   },
   "devDependencies": {
     "playwright": "^1.62.1"

@@ -108,4 +108,13 @@
     }).then(value=>respond({ok:true,value}),error=>respond({ok:false,error:error.message}));
     return true;
   });
+  // Notify the panel when navigation, identity, loading or rotation changes.
+  let lastSignature='',changeTimer;
+  function pageChanged(){
+    let signature;try{const s=pageSnapshot();signature=JSON.stringify([s.key,s.complete,s.partial]);}catch(error){signature='invalid:'+error.message;}
+    if(signature===lastSignature)return;lastSignature=signature;
+    chrome.runtime.sendMessage({type:'PW_PAGE_CHANGED'}).catch(()=>{});
+  }
+  new MutationObserver(()=>{clearTimeout(changeTimer);changeTimer=setTimeout(pageChanged,0);}).observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['src','style','hidden','open','class']});
+  document.addEventListener('load',pageChanged,true);pageChanged();
 })();

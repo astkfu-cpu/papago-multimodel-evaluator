@@ -1,0 +1,36 @@
+name: Publish reviewed release packages
+on:
+  push:
+    branches: [main]
+    paths: ['dist/**', 'docs/releases/**', '.github/workflows/releases.yml']
+permissions:
+  contents: read
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/verify-releases.mjs
+      - name: Publish immutable module releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          publish() {
+            tag="$1"; title="$2"; package="$3"; notes="$4"
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "Release $tag already exists; preserving its assets."
+            else
+              gh release create "$tag" "$package" dist/releases.json --target "$GITHUB_SHA" --title "$title" --notes-file "$notes"
+            fi
+          }
+          publish absolute-v0.28.1 'Absolute evaluator 0.28.1' dist/papago-absolute-evaluator-0.28.1.zip docs/releases/absolute-0.28.1.md
+          publish pairwise-v1.1.0-public.1 'Pairwise evaluator 1.1.0 (public template)' dist/papago-pairwise-evaluator-1.1.0.zip docs/releases/pairwise-1.1.0.md
+          publish demo-v1.0.0 'Self-contained public demo 1.0.0' dist/papago-public-demo-1.0.0.zip docs/releases/demo-1.0.0.md

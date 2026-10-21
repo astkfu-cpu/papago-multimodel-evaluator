@@ -1,6 +1,6 @@
 import { canAutoApply, settingsOf } from './shared.js';
 const $=id=>document.getElementById(id);
-let tabId=null,config,working=false,lastState,archiveUpdate='';
+let tabId=null,config,working=false,lastState,archiveUpdate='',pollEpoch=0,pendingBackup=null,exportAfter=null,exportPart=1,exportSpec='';
 async function call(type,extra={}) {
   const result=await chrome.runtime.sendMessage({type,tabId,...extra});
   if(!result?.ok)throw new Error(result?.error || '扩展后台未响应');
@@ -24,30 +24,38 @@ async function context() {
   } catch(error) {$('context').textContent=error.message;}
   await poll();
 }
-function showState(state) {
+function invalidateSuggestion(){pollEpoch++;$('result-section').hidden=true;$('apply').disabled=true;}
+function showState(state,snapshot,contextError='') {
   lastState=state;status(state.message || '尚未开始');working=Boolean(state.running);
   for(const id of ['analyze','continuous','reanalyze','test-api'])$(id).disabled=working;
   $('stop').disabled=!working;
+  $('restore-confirm').disabled=working || !pendingBackup;
   $('settings-form').querySelectorAll('input,select,button').forEach(el=>el.disabled=working);
-  const result=state.result;$('result-section').hidden=!result;
-  $('apply').disabled=working || !['ready','review'].includes(state.phase) || !canAutoApply(result,config);
+  const matching=Boolean(snapshot && snapshot.key===state.snapshot?.key && !snapshot.complete && !snapshot.partial);
+  const result=matching?state.result:null;$('result-section').hidden=!result;
+  $('apply').disabled=!matching || working || !['ready','review'].includes(state.phase) || !canAutoApply(result,config);
+  if(snapshot)$('context').textContent=`${snapshot.evaluator} · ${snapshot.languagePair.replace('_',' → ')}\n当前第 ${snapshot.index}/${snapshot.total} 项 · 已完成 ${snapshot.done}/${snapshot.total}`;
+  else $('context').textContent=contextError || '当前页面不可用';
+  if(state.result && !matching)status(contextError || '当前题目已变化，请重新分析。');
   if(!result)return;
   const names={A:'A 胜',tie:'平局',B:'B 胜'};
   $('translation').textContent=names[result.translation] || '待人工判断';$('rendering').textContent=names[result.rendering] || '待人工判断';
   $('translation-reason').textContent=result.translation_reason;$('rendering-reason').textContent=result.rendering_reason;
-  $('confidence').textContent=`证据置信度 ${Math.round(result.confidence*100)}%${result.cached?' · 缓存':''}`;
+  $('confidence').textContent=`模型自评置信度 ${Math.round(result.confidence*100)}%${result.cached?' · 缓存':''}`;
   $('review-note').hidden=canAutoApply(result,config);
-  $('review-note').textContent=result.review_reason || '证据置信度低于阈值。请在原表人工判断，或重新分析。';
+  $('review-note').textContent=result.review_reason || '模型自评置信度低于阈值。请在原表人工判断，或重新分析。';
   $('source-summary').textContent='原图：'+result.source_summary;$('a-evidence').textContent='A：'+result.a_evidence;$('b-evidence').textContent='B：'+result.b_evidence;
   $('image-info').textContent=(result.imageInfo || []).map(x=>`${x.label}: 原始 ${x.originalWidth}×${x.originalHeight}，完整送评 ${x.width}×${x.height}`).join('\n')+(result.refined?'\n已结合完整图片和覆盖整图的放大分块复核。':'');
-  if(state.snapshot)$('context').textContent=`${state.snapshot.evaluator} · ${state.snapshot.languagePair.replace('_',' → ')}\n当前第 ${state.snapshot.index}/${state.snapshot.total} 项 · 已完成 ${state.snapshot.done}/${state.snapshot.total}`;
 }
 async function poll() {
   if(!Number.isInteger(tabId) || !config)return;
   try {
-    const state=(await call('PW_STATUS')).status;showState(state);
+    const epoch=++pollEpoch,target=tabId;
+    const [reply,contextReply]=await Promise.all([call('PW_STATUS'),call('PW_CONTEXT').catch(error=>({error:error.message}))]);
+    if(epoch!==pollEpoch || target!==tabId)return;
+    const state=reply.status;showState(state,contextReply.snapshot,contextReply.error);
     if(archiveUpdate!==state.updatedAt){archiveUpdate=state.updatedAt;await updateArchive();}
-  } catch(error){notice(error.message);}
+  } catch(error){invalidateSuggestion();notice(error.message);}
 }
 async function action(fn) {try{notice('');await fn();await poll();}catch(error){notice(error.message);}}
 async function updateArchive() {
@@ -60,16 +68,45 @@ async function updateArchive() {
     container.appendChild(item);
   }
 }
+function downloadArchive(content,filename,type){
+  const url=URL.createObjectURL(new Blob([content],{type}));const link=document.createElement('a');link.href=url;link.download=filename;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+}
 async function exportArchive(current=false) {
   const filter=current?(await call('PW_CONTEXT')).snapshot:null;
-  const reply=await call('PW_EXPORT_ARCHIVE',{filter:filter?{sheetId:filter.sheetId,evaluator:filter.evaluator}:null});
-  const url=URL.createObjectURL(new Blob([reply.html],{type:'text/html;charset=utf-8'}));
-  const link=document.createElement('a');link.href=url;
+  const reply=await call('PW_EXPORT_BATCH',{filter:filter?{sheetId:filter.sheetId,evaluator:filter.evaluator}:null,limit:500,format:'html'});
   const date=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-  link.download=`Papago成对评价_插件离线记录_${date}_${current?'当前任务':'全部'}.html`;
-  document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
-  notice('离线报告已导出。它包含两项理由和保存状态；正式提交请另用原表导出。');
+  downloadArchive(reply.html,`Papago成对评价_插件离线记录_${date}_${current?'当前任务':'全部'}_第1批.html`,'text/html;charset=utf-8');
+  notice(`已导出 ${reply.count} 条。${reply.next?'超过 500 条，请使用下方分批导出，逐批保留。':''}正式提交请另用原表导出。`);
 }
+async function selectedFilter(){
+  const filter=$('archive-scope').value==='current'?(await call('PW_CONTEXT')).snapshot:{};
+  const from=$('archive-from').value,to=$('archive-to').value;
+  if(from && to && from>to)throw new Error('开始日期不能晚于结束日期');
+  return {...(filter.sheetId?{sheetId:filter.sheetId,evaluator:filter.evaluator}:{}),...(from?{from:new Date(from+'T00:00:00+08:00').toISOString()}:{}),...(to?{to:new Date(Date.parse(to+'T00:00:00+08:00')+86400000).toISOString()}:{})};
+}
+async function exportPage(){
+  const filter=await selectedFilter(),format=$('archive-format').value,spec=JSON.stringify([filter,format]);
+  if(spec!==exportSpec){exportSpec=spec;exportAfter=null;exportPart=1;}
+  const page=await call('PW_EXPORT_BATCH',{filter,format,after:exportAfter,limit:500});
+  if(!page.count){$('export-progress').textContent='该范围没有记录';return;}
+  downloadArchive(format==='json'?JSON.stringify(page.json,null,2):page.html,`插件归档_${new Date().toISOString().replace(/[:.]/g,'-')}_第${exportPart}.${format}`,format==='json'?'application/json':'text/html;charset=utf-8');
+  $('export-progress').textContent=`第 ${exportPart} 批：${page.count} 条。${page.next?'仍有记录，请继续导出下一批。':'该范围导出完成。'}`;
+  exportAfter=page.next;exportPart++;if(!page.next)exportSpec='';
+}
+$('export-batch').onclick=()=>action(exportPage);
+$('archive-reset').onclick=()=>{exportSpec='';exportAfter=null;exportPart=1;$('export-progress').textContent='已重置，下一次从第一批开始';};
+$('restore-file').onchange=()=>action(async()=>{
+  pendingBackup=null;$('restore-confirm').disabled=true;const file=$('restore-file').files[0];if(!file)return;
+  if(file.size>25*1024*1024)throw new Error('文件超过 25 MB，请选择原始分批插件备份');
+  const backup=JSON.parse(await file.text()),reply=await call('PW_RESTORE_PREVIEW',{backup});pendingBackup=reply.preview.added?backup:null;
+  $('restore-preview').textContent=`共 ${reply.preview.total} 条，可补入 ${reply.preview.added} 条，已有 ${reply.preview.existing} 条（内容不同 ${reply.preview.conflicts} 条，均保留现有版本）。不修改原表进度和设置。`;
+  $('restore-confirm').disabled=working || !reply.preview.added;
+});
+$('restore-confirm').onclick=()=>action(async()=>{
+  if(!pendingBackup || !confirm('仅补入缺失的插件归档？已有记录不会覆盖；不会恢复客户原表进度。'))return;
+  const reply=await call('PW_RESTORE_COMMIT',{backup:pendingBackup});pendingBackup=null;$('restore-confirm').disabled=true;
+  $('restore-preview').textContent=`已补入 ${reply.restored.added} 条；跳过已有 ${reply.restored.existing} 条。`;await updateArchive();
+});
 $('export-records').onclick=()=>action(()=>exportArchive());
 $('export-current').onclick=()=>action(()=>exportArchive(true));
 $('refresh').onclick=()=>action(context);
@@ -86,6 +123,7 @@ $('settings-form').onsubmit=event=>{event.preventDefault();action(async()=>{
   $('api-key').value='';await readSettings();notice('设置已保存。');
 });};
 $('test-api').onclick=()=>action(async()=>{notice('正在测试千问接口…');const reply=await call('PW_TEST_API');notice(reply.message);});
-chrome.tabs.onActivated.addListener(()=>context().catch(error=>status(error.message)));
+chrome.runtime.onMessage.addListener((message,sender)=>{if(sender.id===chrome.runtime.id && sender.tab?.id===tabId && message.type==='PW_PAGE_CHANGED'){invalidateSuggestion();status('页面发生变化，正在核对当前题目…');void poll();}});
+chrome.tabs.onActivated.addListener(()=>{invalidateSuggestion();context().catch(error=>status(error.message));});
 chrome.tabs.onUpdated.addListener((id,change)=>{if(id===tabId && change.status==='complete')context().catch(error=>status(error.message));});
 await readSettings();await context();await updateArchive();setInterval(poll,1500);

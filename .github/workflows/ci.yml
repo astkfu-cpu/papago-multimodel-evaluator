@@ -17,3 +17,24 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm test
+      - run: npm run verify:releases
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:demo
+      - run: npm run test:upgrade
+      - name: Keep isolated browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-demo-browser-evidence
+          path: |
+            tmp/pairwise-development/*.json
+            tmp/pairwise-development/*.png
+          retention-days: 14

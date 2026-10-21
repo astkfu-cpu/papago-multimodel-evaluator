@@ -5,6 +5,6 @@
 - API access, rate limits, network errors and provider content filters can interrupt requests.
 - Structured output recovery is bounded and may still require manual review.
 - Public comparison templates are generic; task owners must separately supply and verify their requirements.
-- Browser-local archives depend on the existing extension installation and browser profile. Export backups before updating or removing data.
-- Manually navigating a task can leave an older analysis visible; check item identity before using a suggestion.
+- Browser-local archives depend on the existing installation/profile. Versioned JSON backups restore missing plugin records only; they do not restore official sheet progress, API settings or image files. Exports are bounded to 500 records per batch; keep every batch.
+- Pairwise 1.1.0 hides mismatched advice on page-change notifications and rechecks identity during polling and before filling. A polling fallback can have a short delay; interrupted page adapters leave filling disabled.
 - Usage statistics describe archived activity, not an accuracy benchmark, client acceptance or a measured speedup.

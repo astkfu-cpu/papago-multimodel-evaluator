@@ -13,7 +13,7 @@ The maintainer has provided the extensions free of charge to multiple translator
 | Module | Version | Workflow | Load directory |
 | --- | --- | --- | --- |
 | Absolute evaluator | 0.28.1 | Papago Pro source/translated image target-block scoring | Repository root |
-| Pairwise evaluator | 1.0.2 | Complete source/A/B images; independent translation and rendering winners | `pairwise/` |
+| Pairwise evaluator | 1.1.0 | Complete source/A/B images; independent translation and rendering winners | `pairwise/` |
 
 The pairwise module reads complete local image resources, checks direction and item identity per question, records both reasons, supports optional batches and exports durable offline reports. It never treats an API or image-loading failure as a tie. The legacy absolute workflow has different scoring rules and fallback behavior; see [known limitations](docs/KNOWN_LIMITATIONS.md).
 
@@ -47,3 +47,9 @@ Names and account labels in the source records are translators' working aliases,
 
 
 The public pairwise module uses a generic evaluation template. Internal customer rubrics are excluded; task-specific configuration must be supplied separately in an authorized environment. Existing private installations and archives are unchanged.
+
+## Reproducible demo and archive recovery
+
+Download the [standalone demo](dist/papago-public-demo-1.0.0.zip), unzip and open index.html. It uses self-authored images and an explicitly simulated result, without a customer package, API key or network access. Real analysis is optional and billed to the user's own API account. See [demo instructions](demo/README.md).
+
+Pairwise 1.1.0 invalidates mismatched suggestions, labels confidence as model self-reported (not accuracy), and adds versioned JSON backup with restore preview, duplicate/conflict preservation and bounded filtered exports. See [archive recovery](docs/ARCHIVE_BACKUP.md), [Releases](https://github.com/astkfu-cpu/papago-multimodel-evaluator/releases), [evaluation plan](docs/EVALUATION.md) and [real feedback collection](docs/USER_FEEDBACK.md). No independent human accuracy benchmark or public user interview has been completed; simulations and archive counts are not substitutes.

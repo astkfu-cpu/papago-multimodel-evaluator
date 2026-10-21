@@ -1,5 +1,5 @@
 import { RULE_VERSION, DEFAULTS, settingsOf, buildRequest, parseResult, canAutoApply, isTransient, formatRetryRequest } from './shared.js';
-import {saveRecord,archiveInfo,records,offlineReport} from './archive.js';
+import {saveRecord,archiveInfo,records,offlineReport,exportBatch,restoreBackup} from './archive.js';
 
 let activeJob=null;
 const statusWrites=new Map();
@@ -311,6 +311,11 @@ async function dispatch(message) {
     case 'PW_STATUS':return {status:await savedStatus(message.tabId)};
     case 'PW_ARCHIVE_INFO':return archiveInfo();
     case 'PW_EXPORT_ARCHIVE':return {html:offlineReport(await records(message.filter || null))};
+    case 'PW_EXPORT_BATCH':return exportBatch(message.filter || {},message.after,message.limit,message.format,chrome.runtime.getManifest().version);
+    case 'PW_RESTORE_PREVIEW':return {preview:await restoreBackup(message.backup)};
+    case 'PW_RESTORE_COMMIT':
+      if(activeJob)throw new Error('请先停止评价，再恢复插件归档');
+      return {restored:await restoreBackup(message.backup,true)};
     case 'PW_CONTEXT':return {snapshot:await pageCall(message.tabId,'PW_PAGE_SNAPSHOT')};
     case 'PW_START':return start(message.tabId,Boolean(message.continuous),Boolean(message.force));
     case 'PW_STOP':

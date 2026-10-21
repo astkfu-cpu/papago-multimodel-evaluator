@@ -3,7 +3,7 @@
 ## 选择与下载
 
 - 在线 Papago Pro 打分：下载 [绝对打分 0.28.1](../dist/papago-absolute-evaluator-0.28.1.zip)。
-- 本地离线 A/B 比较：下载 [成对评价 1.0.2](../dist/papago-pairwise-evaluator-1.0.2.zip)。
+- 本地离线 A/B 比较：下载 [成对评价 1.1.0](../dist/papago-pairwise-evaluator-1.1.0.zip)。
 
 完整解压 ZIP，浏览器加载包含 `manifest.json` 的文件夹。若克隆整个仓库，在线插件加载根目录，成对插件加载 `pairwise`，不要同时将根目录误当作离线插件。
 

@@ -20,7 +20,7 @@
 | 模块 | 当前版本 | 任务与输入 | 输出 | 浏览器加载目录 |
 | --- | --- | --- | --- | --- |
 | [在线绝对打分](docs/ABSOLUTE.md) | 0.28.1 | Papago Pro 原图、译图及指定目标块 | 翻译/渲染分数、可选评论与归档 | 仓库根目录 |
-| [离线成对评价](pairwise/README.md) | 1.0.2 | Userlog 完整原图及匿名 A/B | 两维独立 A 胜/平局/B 胜、理由与长期归档 | `pairwise/` |
+| [离线成对评价](pairwise/README.md) | 1.1.0 | Userlog 完整原图及匿名 A/B | 两维独立 A 胜/平局/B 胜、理由与长期归档 | `pairwise/` |
 
 两套扩展保留各自的清单、数据存储和规则。同仓库维护不表示两种评价标准可以互换。
 
@@ -60,3 +60,15 @@ npm test
 
 
 公开版成对模块使用通用评价模板，已移除客户内部规则；实际任务中的专用规则需另行获准配置。本机既有客户专用插件和归档未被修改。
+
+## 独立演示与本次改进
+
+直接下载并解压 [公开演示包](dist/papago-public-demo-1.0.0.zip)，打开 index.html 即可体验，不需要客户任务包或 API Key。所有图片和表格自行制作，模拟结果明确标注；真实模型分析需加载扩展并自付 API 费用。见 [演示说明](demo/README.md)。
+
+成对 1.1.0 增加切题失效保护、模型自评置信度说明、[可恢复归档备份与分批导出](docs/ARCHIVE_BACKUP.md)。[GitHub Releases](https://github.com/astkfu-cpu/papago-multimodel-evaluator/releases) 提供版本标签、ZIP、校验值和升级说明。
+
+尚未完成独立人工准确率评测或公开用户访谈，不把模拟演示或归档条数当作这些证据。后续工作见 [人工对照方案](docs/EVALUATION.md) 和 [真实反馈流程](docs/USER_FEEDBACK.md)。
+
+演示界面（明确标注模拟结果）：
+
+![自制公开演示](docs/screenshots/public-demo.png)
