@@ -67,9 +67,6 @@ export function canAutoApply(result, settings) {
   return Boolean(result && !result.needs_review && result.confidence>=settings.confidenceThreshold &&
     ['A','tie','B'].includes(result.translation) && ['A','tie','B'].includes(result.rendering));
 }
-export function checkpointReached(done,total, acknowledged=false) {
-  return !acknowledged && total>0 && done>=Math.ceil(total*0.25);
-}
 export function buildRequest(settings, languagePair, images, refinement=false) {
   const content=[{type:'text',text:`Translation direction: ${languagePair}. ${refinement ? 'Recheck the WHOLE images carefully using the additional enlarged sections. Resolve uncertainty only when the image evidence supports it.' : 'Compare both whole-image results independently on the two criteria.'}`}];
   for (const [i,image] of images.entries()) {

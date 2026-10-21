@@ -29,7 +29,6 @@ function showState(state) {
   for(const id of ['analyze','continuous','reanalyze','test-api'])$(id).disabled=working;
   $('stop').disabled=!working;
   $('settings-form').querySelectorAll('input,select,button').forEach(el=>el.disabled=working);
-  $('checkpoint').hidden=state.phase!=='checkpoint';
   const result=state.result;$('result-section').hidden=!result;
   $('apply').disabled=working || !['ready','review'].includes(state.phase) || !canAutoApply(result,config);
   if(!result)return;
@@ -77,14 +76,11 @@ $('refresh').onclick=()=>action(context);
 $('analyze').onclick=()=>action(()=>call('PW_START',{continuous:false}));
 $('reanalyze').onclick=()=>action(()=>call('PW_START',{continuous:false,force:true}));
 $('continuous').onclick=()=>action(async()=>{
-  if(!confirm('开始本批连续评价？三张完整图片会发送给千问；证据充分时会通过原表按钮填入并自动换题。遇到疑难或约25%进度会暂停。'))return;
+  if(!confirm('开始本批连续评价？三张完整图片会发送给千问；证据充分时会通过原表按钮填入并自动换题。按设置的每批数量运行，25%进度不再强制暂停；疑难或异常仍会暂停。'))return;
   await call('PW_START',{continuous:true});
 });
 $('stop').onclick=()=>action(()=>call('PW_STOP'));
 $('apply').onclick=()=>action(async()=>{if(confirm('确认翻译、渲染两项建议并填入原表？原表保存后会自动切到下一项。'))await call('PW_APPLY');});
-$('checkpoint').onclick=()=>action(async()=>{
-  if(confirm('确认已通过原表导出并收到任务方阶段性反馈？确认后仅解除阶段性暂停，需要另行点击开始连续评价。'))await call('PW_ACK_CHECKPOINT');
-});
 $('settings-form').onsubmit=event=>{event.preventDefault();action(async()=>{
   await call('PW_SAVE_SETTINGS',{settings:{apiKey:$('api-key').value,model:$('model').value.trim(),endpoint:$('endpoint').value.trim(),effort:$('effort').value,batchLimit:Number($('batch-limit').value),confidenceThreshold:Number($('threshold').value),commentMode:$('comment-mode').value}});
   $('api-key').value='';await readSettings();notice('设置已保存。');

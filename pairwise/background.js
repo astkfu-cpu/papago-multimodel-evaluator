@@ -1,4 +1,4 @@
-import { RULE_VERSION, DEFAULTS, settingsOf, buildRequest, parseResult, canAutoApply, checkpointReached, isTransient } from './shared.js';
+import { RULE_VERSION, DEFAULTS, settingsOf, buildRequest, parseResult, canAutoApply, isTransient } from './shared.js';
 import {saveRecord,archiveInfo,records,offlineReport} from './archive.js';
 
 let activeJob=null;
@@ -36,8 +36,6 @@ async function pageCall(tabId,type,extra={}) {
   return reply.value;
 }
 function binding(s) {return JSON.stringify([s.url,s.sheetId,s.evaluator,s.scope,s.total]);}
-function checkpointKey(s) {return 'checkpoint:'+binding(s);}
-async function checkpointAcknowledged(s) {return Boolean((await chrome.storage.local.get(checkpointKey(s)))[checkpointKey(s)]);}
 async function assertSingleSheet(tabId,snapshot) {
   const tabs=await chrome.tabs.query({url:'file:///*'});
   for (const tab of tabs) {
@@ -226,9 +224,6 @@ async function perform(job,config) {
       await guard(job.tabId,current,job.bound);alive(job);
       if(job.continuous) {
         if(current.done>=current.total) {await setStatus(job.tabId,{phase:'done',message:'分配范围已全部完成。请使用原表导出最终结果。',snapshot:current});break;}
-        if(checkpointReached(current.done,current.total,await checkpointAcknowledged(current))) {
-          await setStatus(job.tabId,{phase:'checkpoint',message:`已达到约 25% 阶段性节点（${current.done}/${current.total}）。请使用原表导出，交任务方检查并取得反馈后再继续。`,snapshot:current});break;
-        }
         if(current.complete) {
           if(++skipped>current.total) throw new Error('未找到可评价的新项，已停止');
           await pageCall(job.tabId,'PW_PAGE_ADVANCE',{snapshotKey:current.key});
@@ -250,9 +245,6 @@ async function perform(job,config) {
       await setStatus(job.tabId,{batchDone:applied,message:`本批已保存 ${applied} 项，正在核实下一项完整图片。`});
       current=await waitNext(job,current);alive(job);
       if(current.done>=current.total) {await setStatus(job.tabId,{phase:'done',message:'分配范围已完成，请用原表导出最终结果。',snapshot:current});break;}
-      if(checkpointReached(current.done,current.total,await checkpointAcknowledged(current))) {
-        await setStatus(job.tabId,{phase:'checkpoint',message:`已达到约 25% 阶段性节点（${current.done}/${current.total}）。请用原表导出并取得任务方反馈。`,snapshot:current});break;
-      }
       if(applied>=config.batchLimit) {await setStatus(job.tabId,{phase:'paused',message:`本批 ${applied} 项已保存，请抽查后继续。`,snapshot:current});break;}
       await pause(config.delayMs);
     }
@@ -315,13 +307,6 @@ async function dispatch(message) {
       else await setStatus(message.tabId,{running:false,phase:'paused',message:'已停止'});
       return {stopped:true};
     case 'PW_APPLY':return manualApply(message.tabId);
-    case 'PW_ACK_CHECKPOINT': {
-      if(activeJob)throw new Error('请先停止任务');
-      const current=await pageCall(message.tabId,'PW_PAGE_SNAPSHOT');
-      if(current.done<Math.ceil(current.total*0.25))throw new Error('尚未达到阶段性节点');
-      await chrome.storage.local.set({[checkpointKey(current)]:true});
-      await setStatus(message.tabId,{phase:'paused',message:'已记录你确认收到阶段性反馈，可重新开始连续评价。'});return {acknowledged:true};
-    }
     case 'PW_TEST_API': {
       if(activeJob)throw new Error('任务运行时不能测试接口');
       const config=await settings();if(!config.apiKey)throw new Error('请先保存 API Key');

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Papago 成对评价助手 · 千问",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "读取离线成对评估表的完整原图与 A/B 图，分别比较翻译和渲染，支持单张确认与可选连续评价。",
   "minimum_chrome_version": "120",
   "permissions": [
@@ -38,5 +38,5 @@
       "run_at": "document_idle"
     }
   ],
-  "version_name": "1.0.0-public.1"
+  "version_name": "1.0.1-public.1"
 }

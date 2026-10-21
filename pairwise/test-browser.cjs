@@ -26,7 +26,7 @@ const executable=process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || 'C:\\Program
    const manager=await context.newPage();await manager.goto('edge://extensions/');await manager.evaluate(id=>new Promise((resolve,reject)=>chrome.developerPrivate.updateExtensionConfiguration({extensionId:id,fileAccess:true},()=>chrome.runtime.lastError?reject(new Error(chrome.runtime.lastError.message)):resolve())),id);await manager.close();
   }
   await worker.evaluate(async()=>{
-   await chrome.storage.local.set({settings:{apiKey:'TEST-KEY-NEVER-REAL',model:'qwen3.8-flash',effort:'low',batchLimit:20},cache:[]});
+   await chrome.storage.local.set({settings:{apiKey:'TEST-KEY-NEVER-REAL',model:'qwen3.8-flash',effort:'low',batchLimit:2},cache:[]});
    globalThis.mockMode='success';globalThis.apiCalls=[];globalThis.nativeFetch=fetch.bind(globalThis);
    globalThis.fetch=async(input,init)=>{
     const url=typeof input==='string'?input:input.url;
@@ -75,9 +75,9 @@ const executable=process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || 'C:\\Program
   let archive=await call('PW_ARCHIVE_INFO');assert.equal(archive.count,1);assert.equal(archive.recent[0].applied,true);
   console.log('PASS original UI handlers persist both choices and auto-advance; one durable record updated to applied');
 
-  assert((await call('PW_START',{continuous:true})).ok);state=await finished(['checkpoint']);
-  assert.equal(state.snapshot.done,2);assert.equal(Object.keys((await data()).judgments).length,2);
-  console.log('PASS continuous mode stops at exact assigned 25% checkpoint without processing next item');
+  assert((await call('PW_START',{continuous:true})).ok);state=await finished(['paused']);
+  assert.equal(state.snapshot.done,3);assert.equal(state.batchDone,2);assert(state.message.includes('本批 2 项'));assert.equal(Object.keys((await data()).judgments).length,3);
+  console.log('PASS continuous mode crosses 25% without acknowledgement and stops at configured batch size');
 
   const duplicate=await context.newPage();await duplicate.goto(url);await duplicate.waitForFunction(()=>document.querySelector('#src-body img')?.naturalWidth>0);
   assert((await call('PW_START',{continuous:false,force:true})).ok);state=await finished(['paused']);assert(state.message.includes('多开') || state.message.includes('另一个'));
@@ -90,28 +90,37 @@ const executable=process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || 'C:\\Program
   await page.waitForFunction(()=>['src','a','b'].every(x=>document.querySelector(`#${x}-body img`)?.complete && document.querySelector(`#${x}-body img`)?.naturalWidth>0));
   console.log('PASS modified preselected assignment is rejected before sending images');
 
-  await mode('401');assert((await call('PW_START',{continuous:false,force:true})).ok);state=await finished(['paused']);assert(state.message.includes('401'),state.message);assert.equal(Object.keys((await data()).judgments).length,2);assert.equal((await worker.evaluate(()=>apiCalls)).length,1);
+  await mode('401');assert((await call('PW_START',{continuous:false,force:true})).ok);state=await finished(['paused']);assert(state.message.includes('401'),state.message);assert.equal(Object.keys((await data()).judgments).length,3);assert.equal((await worker.evaluate(()=>apiCalls)).length,1);
   console.log('PASS authentication failure does not retry, fill, or become tie');
 
-  await mode('uncertain');assert((await call('PW_START',{continuous:true,force:true})).ok);state=await finished(['checkpoint']);
-  assert((await call('PW_ACK_CHECKPOINT')).ok);assert((await call('PW_START',{continuous:true,force:true})).ok);state=await finished(['review']);
+  await mode('uncertain');assert((await call('PW_START',{continuous:true,force:true})).ok);state=await finished(['review']);
   calls=await worker.evaluate(()=>apiCalls);assert.equal(calls.length,2);assert.equal(calls[0].sizes.length,3);assert.equal(calls[1].sizes.length,15);
-  assert.equal((await call('PW_APPLY')).ok,false);assert.equal(Object.keys((await data()).judgments).length,2);
+  assert.equal((await call('PW_APPLY')).ok,false);assert.equal(Object.keys((await data()).judgments).length,3);
   console.log('PASS difficult whole-image recheck includes whole images + overlapping sections; high-confidence uncertainty still pauses');
 
-  await mode('429');assert((await call('PW_START',{continuous:false,force:true})).ok);state=await finished(['ready']);assert.equal((await worker.evaluate(()=>apiCalls)).length,3);assert.equal(Object.keys((await data()).judgments).length,2);
+  await mode('429');assert((await call('PW_START',{continuous:false,force:true})).ok);state=await finished(['ready']);assert.equal((await worker.evaluate(()=>apiCalls)).length,3);assert.equal(Object.keys((await data()).judgments).length,3);
   console.log('PASS transient throttling retries before producing a suggestion, without filling during retries');
 
   await mode('delayed');assert((await call('PW_START',{continuous:false,force:true})).ok);
   await until(async()=>(await call('PW_STATUS')).status?.phase==='analyzing');
   await page.locator('#a-rotate').click();state=await finished(['paused']);assert(state.message.includes('旋转') || state.message.includes('变化'));
-  for(let i=0;i<3;i++)await page.locator('#a-rotate').click();assert.equal(Object.keys((await data()).judgments).length,2);
+  for(let i=0;i<3;i++)await page.locator('#a-rotate').click();assert.equal(Object.keys((await data()).judgments).length,3);
   console.log('PASS image rotation while request is pending invalidates old recommendation');
 
   await mode('delayed');assert((await call('PW_START',{continuous:true,force:true})).ok);
   await until(async()=>(await call('PW_STATUS')).status?.phase==='analyzing');
-  assert((await call('PW_STOP')).ok);await finished(['paused']);assert.equal(Object.keys((await data()).judgments).length,2);
+  assert((await call('PW_STOP')).ok);await finished(['paused']);assert.equal(Object.keys((await data()).judgments).length,3);
   console.log('PASS stop cancels request and prevents fill');
+
+  await mode('success');
+  assert((await call('PW_SAVE_SETTINGS',{settings:{batchLimit:800}})).ok);
+  assert.equal((await call('PW_SETTINGS')).settings.batchLimit,800);
+  assert((await call('PW_START',{continuous:true,force:true})).ok);state=await finished(['done']);
+  assert.equal(state.snapshot.done,8);assert.equal(state.batchDone,5);assert.equal(Object.keys((await data()).judgments).length,8);
+  calls=await worker.evaluate(()=>apiCalls);assert.equal(calls.length,5);
+  assert(calls[0].labels[0].includes('EN_JA'));assert(calls.slice(1).every(x=>x.labels[0].includes('JA_EN')));
+  assert.equal(await dashboard.locator('#checkpoint').count(),0);
+  console.log('PASS batch size 800 resumes above 25%, switches direction per item and completes all remaining items');
 
   const count=(await call('PW_ARCHIVE_INFO')).count;await dashboard.reload();await dashboard.waitForFunction(()=>document.querySelector('#archive-count').textContent!=='0 条');assert.equal((await call('PW_ARCHIVE_INFO')).count,count);
   const report=await call('PW_EXPORT_ARCHIVE');assert(report.html.includes('翻译'));assert(report.html.includes('原表两项已保存'));assert(!report.html.includes('TEST-KEY-NEVER-REAL'));assert(!report.html.includes('PRIVATE TEST REASONING'));
@@ -135,7 +144,7 @@ const executable=process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || 'C:\\Program
   }));
   assert.equal(restored.count,count+101);
   console.log('PASS archive exceeds 100 records and survives closing/reopening the isolated browser profile');
-  fs.writeFileSync(path.join(work,'e2e-summary.json'),JSON.stringify({tests:12,passed:true,mockAPI:true,liveAPI:false,nativeImages:true,wholeImage:true,originalImageBytesVerified:true,assignmentGuardVerified:true,archiveRecords:restored.count,browserRestartVerified:true,originalPackageUnchanged:true},null,2));
+  fs.writeFileSync(path.join(work,'e2e-summary.json'),JSON.stringify({tests:13,passed:true,checkpointDoesNotBlock:true,batchLimitVerified:true,directionSwitchVerified:true,mockAPI:true,liveAPI:false,nativeImages:true,wholeImage:true,originalImageBytesVerified:true,assignmentGuardVerified:true,archiveRecords:restored.count,browserRestartVerified:true,originalPackageUnchanged:true},null,2));
   console.log('PASS browser sheet progress survives reload; official package unchanged. All browser checks passed with mocked Qwen responses.');
  }finally{await context.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
