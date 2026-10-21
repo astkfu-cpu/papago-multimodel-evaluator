@@ -97,8 +97,9 @@ for (const box of [[800, 300, 840, 340], [0, 0, 1, 1], [999, 999, 1000, 1000]]) 
 assert.deepEqual(plain(bg.validateTargetLocation({ found: false, state: "page_error", confidence: .9 })), {
   found: false, state: "page_error", confidence: .9
 });
+assert.deepEqual(plain(bg.validateTargetLocation({ found: true, state: "omitted", box: [10,10,20,20], confidence: .9 })).state, "omitted");
 assert.throws(() => bg.validateTargetLocation({ found: false, state: "page_error", confidence: .4 }));
-count += 2;
+count += 3;
 for (const value of [
   { found: false, box: [1, 2, 3, 4], confidence: 1 },
   { found: true, box: [-1, 2, 3, 4], confidence: 1 },
@@ -109,9 +110,10 @@ for (const value of [
   { found: true, box: [1, 2, 3, 4], confidence: Infinity }
 ]) { assert.throws(() => bg.validateTargetLocation(value)); count++; }
 
-function setup({ locationError = false, navigateDuring = "", stopDuring = "", targetState = "normal", evaluationError = false } = {}) {
+function setup({ locationError = false, locationFailuresBeforeSuccess = 0, navigateDuring = "", stopDuring = "", targetState = "normal", evaluationError = false } = {}) {
   const crops = [], messages = [], fills = [];
   let item = "page:1";
+  let targetLocateCalls = 0;
   const box = [800, 300, 840, 340]; // Translation moved far from source; phone screenshot inset.
   const context = vm.createContext({
     location: { hostname: "papago-pro.naver.com", pathname: "/test" },
@@ -124,13 +126,14 @@ function setup({ locationError = false, navigateDuring = "", stopDuring = "", ta
         if (message.type === stopDuring) vm.runInContext("runState = {running:true, stopRequested:true}", context);
         if (message.type === "CAPTURE_VISIBLE") return { ok: true, image: "screen" };
         if (message.type === "LOCATE_TARGET_BLOCK") {
-          if (locationError) return { ok: false, error: typeof locationError === "string" ? locationError : "not located" };
+          targetLocateCalls += 1;
+          if (locationError || targetLocateCalls <= locationFailuresBeforeSuccess) return { ok: false, error: typeof locationError === "string" ? locationError : "not located" };
           if (["no_output", "page_error"].includes(targetState)) return { ok: true, location: { found: false, state: targetState, confidence: .9 } };
           return { ok: true, location: { found: true, state: targetState, box, confidence: .9 } };
         }
         if (message.type === "EVALUATE_IMAGES") return evaluationError ? { ok: false, error: "temporary empty response" } : { ok: true, result: {
-          evaluation_state: "normal",
-          source_text: "原文", target_text: "译文", translation_score: 4, rendering_score: 4,
+          evaluation_state: targetState === "omitted" ? "omitted" : "normal",
+          source_text: "原文", target_text: targetState === "omitted" ? "" : "译文", translation_score: targetState === "omitted" ? 1 : 4, rendering_score: 4,
           confidence: .9, needs_review: false
         } };
         return { ok: true };
@@ -150,9 +153,32 @@ function setup({ locationError = false, navigateDuring = "", stopDuring = "", ta
     resizeForModel: async image => image, upscaleForModel: async image => image,
     createOverlappingTiles: async () => [], enhanceTextImage: async image => image,
     imageSimilarity: async () => 0, collectContext: () => "current block",
-    fillEvaluation: result => fills.push(result)
+    fillEvaluation: result => fills.push(result), sleep: async () => {}
   });
   return {context, crops, messages, fills, box};
+}
+{
+  const {context} = setup();
+  class FakeTextArea {
+    constructor(value) { this._value = value; this.events = []; this.blurred = false; }
+    get value() { return this._value; }
+    set value(value) { this._value = value; }
+    dispatchEvent(event) { this.events.push(event.type); }
+    blur() { this.blurred = true; }
+  }
+  class FakeInput extends FakeTextArea {
+    constructor(value) { super(value); this.type = "text"; }
+  }
+  class FakeEvent { constructor(type) { this.type = type; } }
+  const fields = [new FakeTextArea("旧韩文评论"), new FakeInput("另一条旧评论")];
+  Object.assign(context, { HTMLTextAreaElement: FakeTextArea, HTMLInputElement: FakeInput, Event: FakeEvent, sleep: async () => {} });
+  context.document = { querySelectorAll: () => fields };
+  assert.equal(context.effectiveCommentMode({ commentMode: "bilingual", redoClearComments: true }), "none");
+  assert.equal(context.effectiveCommentMode({ commentMode: "bilingual", redoClearComments: false }), "bilingual");
+  assert.equal(await context.clearExistingComments({ verify: true }), 2);
+  assert.deepEqual(fields.map((field) => field.value), ["", ""]);
+  assert(fields.every((field) => field.events.includes("input") && field.events.includes("change") && field.blurred));
+  count += 4;
 }
 {
   const {context, messages, fills} = setup();
@@ -220,6 +246,17 @@ function setup({ locationError = false, navigateDuring = "", stopDuring = "", ta
   assert.equal(messages.filter(m => m.type === "EVALUATE_IMAGES").length, 0);
   count++;
 }
+{
+  const {context, fills, messages} = setup({targetState:"omitted"});
+  const outcome = await context.runOne({preserveViewer:true});
+  assert.equal(outcome.filled, true);
+  assert.equal(fills[0].evaluation_state, "omitted");
+  assert.equal(fills[0].translation_score, 1);
+  assert.equal(fills[0].rendering_score, 4);
+  assert.equal(messages.filter(m => m.type === "LOCATE_TARGET_BLOCK").length, 1);
+  assert.equal(messages.filter(m => m.type === "EVALUATE_IMAGES").length, 1);
+  count++;
+}
 
 {
   const {context, crops, messages, fills, box} = setup();
@@ -232,7 +269,7 @@ function setup({ locationError = false, navigateDuring = "", stopDuring = "", ta
   assert(actual.focus.left > .75, "Must not reuse source block coordinates near 0.15");
   const locate = messages.find(m => m.type === "LOCATE_TARGET_BLOCK");
   assert.equal(locate.targetImage, "target-native");
-  assert.equal(locate.sourceGuide, "crop:screen-left", "Locator must see screenshot highlight, not unmarked source crop");
+  assert.equal(locate.sourceGuide, "crop:source-native", "Locator receives a clean crop after local marker coordinates are resolved");
   const evaluate = messages.find(m => m.type === "EVALUATE_IMAGES");
   assert.equal(evaluate.targetDetail, "crop:target-native");
   assert.equal(messages.filter(m => m.type === "LOCATE_TARGET_BLOCK").length, 1);
@@ -248,6 +285,26 @@ function setup({ locationError = false, navigateDuring = "", stopDuring = "", ta
   assert.equal(fills[0].rendering_score, 3);
   assert.equal(fills[0].auto_fallback, true);
   assert.equal(messages.filter(m => m.type === "LOCATE_TARGET_BLOCK").length, 3);
+  assert.match(fills[0].capture_info, /3轮定位失败/);
+  count++;
+}
+{
+  const {context, fills, messages} = setup({locationFailuresBeforeSuccess:3});
+  const outcome = await context.runOne({preserveViewer:true});
+  assert.equal(outcome.filled, true);
+  assert.equal(fills.length, 1);
+  assert.equal(fills[0].translation_score, 3);
+  assert.equal(fills[0].rendering_score, 3);
+  assert.equal(fills[0].auto_fallback, true);
+  assert.equal(messages.filter(m => m.type === "LOCATE_TARGET_BLOCK").length, 3,
+    "one run has a strict three-round locator budget without recursively repeating the whole pipeline");
+  count++;
+}
+{
+  const {context, fills, messages} = setup({locationError:"千问百炼网络请求失败，已自动重试 2 次：Failed to fetch"});
+  await assert.rejects(() => context.runOne({preserveViewer:true}), /网络请求失败/);
+  assert.equal(fills.length, 0, "network failures must never be converted to 3/3 or N/A");
+  assert.equal(messages.filter(m => m.type === "LOCATE_TARGET_BLOCK").length, 1);
   count++;
 }
 for (const options of [

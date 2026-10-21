@@ -1,4 +1,4 @@
-const ids = ["apiKey", "qwenApiKey", "qwenEndpoint", "model", "languagePair", "accountLabel", "qualityMode", "commentMode", "backgroundCapture", "autoAdvance", "pauseOnLowConfidence", "browserArchiveEnabled", "diskArchiveEnabled", "requireDiskBackup", "confidenceThreshold", "delayMs", "maxItems"];
+const ids = ["apiKey", "qwenApiKey", "qwenEndpoint", "model", "languagePair", "accountLabel", "qualityMode", "commentMode", "redoClearComments", "backgroundCapture", "autoAdvance", "pauseOnLowConfidence", "browserArchiveEnabled", "diskArchiveEnabled", "requireDiskBackup", "confidenceThreshold", "delayMs", "maxItems"];
 const elements = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 const onceButton = document.getElementById("once");
 const startButton = document.getElementById("start");
@@ -20,13 +20,17 @@ const diskBackupStatusElement = document.getElementById("diskBackupStatus");
 const migrateLegacyArchiveButton = document.getElementById("migrateLegacyArchive");
 const importArchiveJsonButton = document.getElementById("importArchiveJson");
 const archiveImportFile = document.getElementById("archiveImportFile");
+const abnormalReviewCategory = document.getElementById("abnormalReviewCategory");
+const abnormalReviewStats = document.getElementById("abnormalReviewStats");
+const refreshAbnormalReviewButton = document.getElementById("refreshAbnormalReview");
+const startAbnormalReviewButton = document.getElementById("startAbnormalReview");
 const ARCHIVE_UI_DB_NAME = "papago-evaluation-detailed-archive";
 const ARCHIVE_UI_DB_VERSION = 2;
 const ARCHIVE_UI_EVALUATIONS_STORE = "evaluations";
 const ARCHIVE_UI_CONFIG_STORE = "config";
 const BACKUP_DIRECTORY_CONFIG_KEY = "backupDirectory";
 const TASK_PROFILES_KEY = "taskProfilesV1";
-const PANEL_BUILD_VERSION = "0.25.0";
+const PANEL_BUILD_VERSION = "0.28.1";
 const ORIGINAL_EXTENSION_ID = "dkoifdkgghhfnifnacfjioljdognejbl";
 const LEGACY_LUNA_EXTENSION_ID = "ckehnenaimedhlelnmclelbdfojmndle";
 // Unpacked extensions receive a different runtime ID on every user's machine.
@@ -40,6 +44,7 @@ let boundPageContext = null;
 let bindGeneration = 0;
 let currentBackupDirectoryHandle = null;
 let currentDiskBackupStatus = null;
+let abnormalReviewItems = [];
 
 initialize().catch(showError);
 
@@ -78,9 +83,13 @@ async function initialize() {
     await chrome.storage.local.set({ backgroundCapture: false });
   }
   updateProviderFields();
+  syncCommentModeUi();
   syncArchiveOptionsUi();
   for (const [id, element] of Object.entries(elements)) {
-    const handler = id === "backgroundCapture" ? handleBackgroundCaptureChange : (id === "model" ? handleModelChange : (id === "diskArchiveEnabled" ? handleDiskArchiveChange : saveSettings));
+    const handler = id === "backgroundCapture" ? handleBackgroundCaptureChange
+      : (id === "model" ? handleModelChange
+        : (id === "diskArchiveEnabled" ? handleDiskArchiveChange
+          : (id === "redoClearComments" ? handleRedoClearCommentsChange : saveSettings)));
     element.addEventListener("change", handler);
   }
   evaluationHistory = Array.isArray(response.settings.evaluationHistory) ? response.settings.evaluationHistory.slice(0, 50) : [];
@@ -119,6 +128,22 @@ startButton.addEventListener("click", async () => {
     await ensureDiskBackupReady(settings);
     await sendToEvaluationTab({ type: "START_AUTO", settings }, true);
     setRunning(true, "连续评价已启动");
+  } catch (error) {
+    showError(error);
+    setRunning(false);
+  }
+});
+
+refreshAbnormalReviewButton.addEventListener("click", () => refreshAbnormalReviewList().catch(showError));
+abnormalReviewCategory.addEventListener("change", () => refreshAbnormalReviewList().catch(showError));
+startAbnormalReviewButton.addEventListener("click", async () => {
+  try {
+    const settings = await saveSettings();
+    ensureTaskAccountLabel(settings);
+    const items = await refreshAbnormalReviewList();
+    if (!items.length) throw new Error("当前账号、任务和分类没有可复评的异常记录");
+    await sendToEvaluationTab({ type: "START_ABNORMAL_REVIEW", settings, items }, true);
+    setRunning(true, `异常复评已启动，共 ${items.length} 张`);
   } catch (error) {
     showError(error);
     setRunning(false);
@@ -253,6 +278,7 @@ async function saveSettings() {
     accountLabel: elements.accountLabel.value.trim(),
     qualityMode: elements.qualityMode.value,
     commentMode: elements.commentMode.value,
+    redoClearComments: elements.redoClearComments.checked,
     backgroundCapture: elements.backgroundCapture.checked,
     autoAdvance: elements.autoAdvance.checked,
     pauseOnLowConfidence: elements.pauseOnLowConfidence.checked,
@@ -270,6 +296,21 @@ async function saveSettings() {
   await saveTaskProfile(settings.accountLabel);
   syncArchiveOptionsUi(settings);
   return settings;
+}
+
+function syncCommentModeUi() {
+  const enabled = elements.redoClearComments.checked;
+  elements.commentMode.disabled = enabled;
+  elements.commentMode.title = enabled ? "重做清理模式已强制禁止生成评论" : "";
+  const hint = document.getElementById("redoClearCommentsHint");
+  if (hint) hint.textContent = enabled
+    ? "已开启：图像识别完成后、提交评分前清空全部评论框；网络恢复重试也保持为空，归档不会写入本轮评论。"
+    : "关闭时保持原有评论设置；开启后会在完成图像识别后、提交评分前清空页面已有评论，并禁止本轮重新生成或恢复评论。";
+}
+
+async function handleRedoClearCommentsChange() {
+  syncCommentModeUi();
+  await saveSettings();
 }
 
 function syncArchiveOptionsUi(settings = null) {
@@ -503,6 +544,8 @@ function setRunning(running, message) {
   startButton.disabled = running || legacyMigrationMode;
   stopButton.disabled = !running;
   testApiButton.disabled = running;
+  startAbnormalReviewButton.disabled = running || legacyMigrationMode;
+  refreshAbnormalReviewButton.disabled = running || legacyMigrationMode;
   if (message) statusElement.textContent = message;
   setBadge(running ? "运行中" : "待机", running ? "running" : "idle");
 }
@@ -745,6 +788,56 @@ async function loadAllDetailedArchiveEntries() {
     entries.push(...page);
     if (page.length < pageSize) return entries;
   }
+}
+
+const abnormalCategoryLabels = {
+  high_risk: "高风险异常", locator_fallback: "识别/定位失败后3分",
+  questionable_na: "可疑N/A或状态不一致", special_state: "未翻译/漏译特殊判定",
+  score_mismatch: "满分依据与分数不一致", network_scored: "网络异常却写入评分", all: "全部异常"
+};
+
+function classifyArchiveAbnormal(entry) {
+  const text = `${entry.reason || ""} ${entry.captureInfo || ""} ${entry.commentZh || ""}`;
+  const state = String(entry.evaluationState || "");
+  const translation = String(entry.translationScore ?? "").toUpperCase();
+  const rendering = String(entry.renderingScore ?? "").toUpperCase();
+  const categories = new Set();
+  if (entry.autoFallback || state === "unreadable" || /定位.*失败|识别.*失败|无法确认|中间档|3\/3.*兜底/.test(text)) categories.add("locator_fallback");
+  const objectiveNa = ["no_output", "page_error", "source_unreadable"].includes(state) || /无法辨认字符|字符损坏|界面遮挡|没有生成.*结果|拒绝翻译/.test(text);
+  if ((translation === "NA" || rendering === "NA") && !objectiveNa && state !== "untranslated") categories.add("questionable_na");
+  if (["untranslated", "omitted", "source_unreadable", "no_output", "page_error"].includes(state)) categories.add("special_state");
+  if (/\[满分(?:依据|证据)\]/.test(text) &&
+      ((translation !== "5" && /翻译|准确|语义/.test(text)) || (rendering !== "5" && /渲染|排版|视觉/.test(text)))) categories.add("score_mismatch");
+  if (/网络|timeout|timed out|failed to fetch|connection|HTTP\s*(?:408|429|5\d\d)|截图失败|图片.*未更新/i.test(text) &&
+      (translation || rendering)) categories.add("network_scored");
+  if (entry.needsReview || Number(entry.confidence || 0) < 0.72 || categories.size) categories.add("high_risk");
+  if (categories.size) categories.add("all");
+  return categories;
+}
+
+async function refreshAbnormalReviewList() {
+  if (!boundPageContext) throw new Error("请先切换到要复评的 Papago 任务页");
+  const accountLabel = String(elements.accountLabel.value || "").trim();
+  if (!accountLabel) throw new Error("请先填写当前任务的账号标签");
+  const identity = { ...boundPageContext, accountLabel, languagePair: elements.languagePair.value };
+  const response = await chrome.runtime.sendMessage({ type: "GET_ARCHIVE_TASK_ENTRIES", identity });
+  if (!response?.ok) throw new Error(response?.error || "读取当前任务归档失败");
+  const latestByItem = new Map();
+  for (const entry of response.entries || []) {
+    const index = Number(entry.itemIndex);
+    if (!Number.isInteger(index) || index < 1) continue;
+    const previous = latestByItem.get(index);
+    if (!previous || Number(entry.createdAt || 0) >= Number(previous.createdAt || 0)) latestByItem.set(index, entry);
+  }
+  const selected = abnormalReviewCategory.value || "high_risk";
+  abnormalReviewItems = [...latestByItem.values()].filter((entry) => classifyArchiveAbnormal(entry).has(selected))
+    .sort((a, b) => Number(a.itemIndex) - Number(b.itemIndex))
+    .map((entry) => ({
+      itemIndex: Number(entry.itemIndex), archiveId: entry.id,
+      category: selected, categoryLabel: abnormalCategoryLabels[selected] || selected
+    }));
+  abnormalReviewStats.textContent = `当前账号 ${accountLabel} · 任务 ${boundPageContext.taskId || boundPageContext.taskRoute}：最新记录 ${latestByItem.size} 张，其中“${abnormalCategoryLabels[selected]}” ${abnormalReviewItems.length} 张。`;
+  return abnormalReviewItems;
 }
 
 async function importArchiveEntries(entries) {

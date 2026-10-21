@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Papago 多模型翻译评价助手",
-  "version": "0.25.0",
+  "version": "0.28.1",
   "description": "读取 Papago Pro 原图与译图，按指定规则调用 DeepSeek 或千问评分、填写评论并切换任务。",
   "permissions": ["activeTab", "tabs", "storage", "unlimitedStorage", "sidePanel", "debugger"],
   "host_permissions": [

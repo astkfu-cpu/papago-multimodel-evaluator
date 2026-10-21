@@ -1,10 +1,15 @@
-const CONTENT_BUILD_VERSION = "0.25.0";
+const CONTENT_BUILD_VERSION = "0.28.1";
+// UI-only releases must not invalidate proven image-location/evaluation cache entries.
+// Bump this only when the locator prompts, crop pipeline, or scoring rubric changes.
+const PIPELINE_CACHE_VERSION = "0.28.0";
 let runState = { running: false, stopRequested: false };
 let singleRunning = false;
 let runtimeView = { state: "idle", message: "当前标签页待机", result: null, pagePath: location.pathname };
 let useExtensionTimers = false;
 const pageImageCache = new Map();
 const MAX_PAGE_IMAGE_CACHE_ENTRIES = 12;
+const visualElementIds = new WeakMap();
+let nextVisualElementId = 1;
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   handleCommand(message)
@@ -46,7 +51,7 @@ async function handleCommand(message) {
   if (message?.type === "START_AUTO") {
     if (runState.running || singleRunning) return { ok: true, alreadyRunning: true };
     const settings = settingsForCurrentPage(message.settings || {});
-    runState = { running: true, stopRequested: false };
+    runState = { running: true, stopRequested: false, settings };
     autoLoop(settings)
       .catch((error) => {
         emitStatus("error", error?.message || String(error));
@@ -57,11 +62,186 @@ async function handleCommand(message) {
       });
     return { ok: true };
   }
+  if (message?.type === "START_ABNORMAL_REVIEW") {
+    if (runState.running || singleRunning) return { ok: true, alreadyRunning: true };
+    const settings = settingsForCurrentPage({ ...(message.settings || {}), forceReevaluation: true });
+    const items = Array.isArray(message.items) ? message.items : [];
+    if (!items.length) throw new Error("当前账号与任务没有符合所选分类的异常记录");
+    runState = { running: true, stopRequested: false, settings, abnormalReview: true };
+    abnormalReviewLoop(items, settings).catch((error) => {
+      emitStatus("error", error?.message || String(error));
+      runState.running = false;
+    }).finally(async () => releaseBackgroundCapture());
+    return { ok: true, count: items.length };
+  }
   if (message?.type === "STOP_AUTO") {
     runState.stopRequested = true;
     return { ok: true };
   }
   throw new Error("未知操作");
+}
+
+async function abnormalReviewLoop(items, settings) {
+  await prepareBackgroundCapture(settings);
+  let completed = 0;
+  for (const item of items) {
+    if (runState.stopRequested) break;
+    const targetIndex = Number(item.itemIndex);
+    if (!Number.isInteger(targetIndex) || targetIndex < 1) continue;
+    let outcome = null;
+    let recoveryCount = 0;
+    while (!runState.stopRequested && !outcome) {
+      try {
+        emitStatus("loading", `异常复评 ${completed + 1}/${items.length}：正在跳转第 ${targetIndex} 张（${item.categoryLabel || "异常记录"}）`);
+        await jumpToItemIndex(targetIndex, {
+          backgroundCapture: settings.backgroundCapture === true,
+          forceTransition: recoveryCount > 0
+        });
+        if (readProgress().current !== targetIndex) throw new Error(`页面没有确认跳转到第 ${targetIndex} 张`);
+        outcome = await runOne({ settings: { ...settings, abnormalReviewCategory: item.category || "all", abnormalReviewSourceId: item.archiveId || "" } });
+      } catch (error) {
+        if (!isRecoverableRunError(error)) throw error;
+        recoveryCount += 1;
+        if (recoveryCount >= 3) {
+          throw new Error(`第 ${targetIndex} 张连续 ${recoveryCount} 次未能确认真实图片切换，异常复评已停止且没有重复评价当前图片。最后错误：${String(error?.message || error).slice(0, 180)}`);
+        }
+        emitStatus("recovering", `第 ${targetIndex} 张遇到网络、页面加载或取图异常，未写入评分；正在恢复后重试（第 ${recoveryCount} 次）：${String(error?.message || error).slice(0, 160)}`);
+        await recoverBackgroundCapture(settings);
+        await sleep(Math.min(12000, 1000 + recoveryCount * 1000));
+      }
+    }
+    if (runState.stopRequested) break;
+    if (!outcome.filled) throw new Error(outcome.pauseReason || `第 ${targetIndex} 张复评未完成`);
+    completed += 1;
+    emitStatus("scored", `异常复评已完成 ${completed}/${items.length}：第 ${targetIndex} 张`, outcome.result);
+    await sleep(Math.max(500, clampInt(settings.delayMs, 300, 15000, 1200)));
+  }
+  runState.running = false;
+  emitStatus(runState.stopRequested ? "stopped" : "done", runState.stopRequested
+    ? `异常复评已停止，已完成 ${completed} 张`
+    : `异常复评完成：共重新评价 ${completed} 张`);
+}
+
+async function jumpToItemIndex(targetIndex, { backgroundCapture = false, forceTransition = false } = {}) {
+  const initialProgress = readProgress();
+  const initialVisualState = await captureCurrentPaneVisualState(backgroundCapture).catch(() => null);
+  const initialGuide = readGuideItemNumber();
+  if (!forceTransition && progressMatchesTarget(initialProgress, targetIndex)) return;
+
+  // A previous failed attempt may have changed only the visible number/range value.
+  // Move to a neighbouring item first so the requested item must produce a real
+  // image transition before it can be scored.
+  if (forceTransition && progressMatchesTarget(initialProgress, targetIndex)) {
+    const bounceIndex = targetIndex > 1 ? targetIndex - 1 : initialProgress.total > 1 ? 2 : 0;
+    if (!bounceIndex) throw new Error(`第 ${targetIndex} 张页码已变化，但无法建立真实图片切换校验`);
+    emitStatus("recovering", `第 ${targetIndex} 张页码数字已变化但图片未确认切换，正在通过相邻图片重新校准`);
+    await performVerifiedProgressJump(bounceIndex, initialVisualState, initialGuide, backgroundCapture);
+  }
+
+  const beforeVisualState = await captureCurrentPaneVisualState(backgroundCapture).catch(() => null);
+  const beforeGuide = readGuideItemNumber();
+  await performVerifiedProgressJump(targetIndex, beforeVisualState, beforeGuide, backgroundCapture);
+}
+
+async function performVerifiedProgressJump(targetIndex, beforeVisualState, beforeGuide, backgroundCapture) {
+  const { input, range } = findProgressControls();
+  if (!input && !range) throw new Error("未找到页码跳转控件");
+  const startedAt = Date.now();
+  const deadline = startedAt + 36000;
+  let inputTriggered = false;
+  let retryTriggered = false;
+  let stableCount = 0;
+  let previousCandidate = "";
+
+  if (range) commitProgressControl(range, targetIndex, false);
+  else commitProgressControl(input, targetIndex, true);
+
+  while (Date.now() < deadline) {
+    if (runState.stopRequested) throw new Error("异常复评已由用户停止");
+    await sleep(600);
+    const elapsed = Date.now() - startedAt;
+    if (!inputTriggered && input && elapsed >= 1200) {
+      commitProgressControl(input, targetIndex, true);
+      inputTriggered = true;
+    }
+    if (!retryTriggered && elapsed >= 6500) {
+      if (range) commitProgressControl(range, targetIndex, false);
+      if (input) commitProgressControl(input, targetIndex, true);
+      retryTriggered = true;
+    }
+
+    const progress = readProgress();
+    const visualState = await captureCurrentPaneVisualState(backgroundCapture).catch(() => null);
+    const guide = readGuideItemNumber();
+    const visualChanged = paneTransitionConfirmed(beforeVisualState, visualState);
+    const guideChanged = Boolean(beforeGuide && guide && beforeGuide !== guide);
+    const transitionConfirmed = visualChanged || guideChanged;
+    const candidate = `${progress.current}:${guide}:${visualStateIdentity(visualState)}`;
+    if (progressMatchesTarget(progress, targetIndex) && transitionConfirmed) {
+      stableCount = candidate === previousCandidate ? stableCount + 1 : 1;
+      previousCandidate = candidate;
+      if (stableCount >= 2) return;
+    } else {
+      stableCount = 0;
+      previousCandidate = candidate;
+    }
+
+    if (elapsed >= 3000 && progress.inputCurrent === targetIndex && !transitionConfirmed) {
+      emitStatus("recovering", `第 ${targetIndex} 张下方数字已变化，但真实进度或两侧图片尚未切换；不会评分，正在继续确认`);
+    }
+  }
+  const progress = readProgress();
+  throw new Error(`第 ${targetIndex} 张跳转超时：下方数字为 ${progress.inputCurrent || "未知"}，真实滑块为 ${progress.rangeCurrent || "未知"}，但两侧图片没有确认更新；本张未评分`);
+}
+
+function findProgressControls() {
+  const input = document.querySelector('input[class*="progress_current_input"]') ||
+    [...document.querySelectorAll('input[type="number"]')].find((node) => Number(node.value || 0) >= 1) || null;
+  const ranges = [...document.querySelectorAll('input[type="range"]')]
+    .filter((node) => Number(node.max || 0) > 1)
+    .sort((a, b) => Number(b.max || 0) - Number(a.max || 0));
+  return { input, range: ranges[0] || null };
+}
+
+function commitProgressControl(control, targetIndex, commitWithEnter) {
+  if (!control) return;
+  control.focus?.({ preventScroll: true });
+  const prototype = control instanceof HTMLInputElement ? HTMLInputElement.prototype : Object.getPrototypeOf(control);
+  const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set ||
+    Object.getOwnPropertyDescriptor(Object.getPrototypeOf(control), "value")?.set;
+  if (setter) setter.call(control, String(targetIndex));
+  else control.value = String(targetIndex);
+  control.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
+  control.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
+  if (commitWithEnter) {
+    const keyboard = { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, composed: true };
+    control.dispatchEvent(new KeyboardEvent("keydown", keyboard));
+    control.dispatchEvent(new KeyboardEvent("keypress", keyboard));
+    control.dispatchEvent(new KeyboardEvent("keyup", keyboard));
+  } else {
+    control.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, composed: true }));
+  }
+  control.blur?.();
+}
+
+function progressMatchesTarget(progress, targetIndex) {
+  if (progress.rangeCurrent > 0 && progress.inputCurrent > 0) {
+    return progress.rangeCurrent === targetIndex && progress.inputCurrent === targetIndex;
+  }
+  return progress.current === targetIndex;
+}
+
+function paneTransitionConfirmed(before, current) {
+  if (!before || !current) return false;
+  return Boolean(
+    (before.sourceNative && current.sourceNative && before.sourceNative !== current.sourceNative) ||
+    (before.targetNative && current.targetNative && before.targetNative !== current.targetNative)
+  );
+}
+
+function visualStateIdentity(state) {
+  if (!state) return "";
+  return `${state.sourceNative || ""}:${state.targetNative || ""}:${state.sourceMount || ""}:${state.targetMount || ""}`;
 }
 
 
@@ -83,7 +263,9 @@ async function autoLoop(settings) {
       if (!isRecoverableRunError(error)) throw error;
       recoveryCount += 1;
       const delay = Math.min(15000, 1200 + recoveryCount * 900);
-      emitStatus("recovering", `当前张遇到临时取图或页面连接问题，正在自动恢复（第 ${recoveryCount} 次，${Math.round(delay / 1000)} 秒后重试）`);
+      const cause = String(error?.message || error || "未知原因");
+      const kind = isTransientApiError(cause) ? "网络或模型接口暂时失败" : "临时取图或页面连接问题";
+      emitStatus("recovering", `${kind}，当前张未填写，正在自动恢复（第 ${recoveryCount} 次，${Math.round(delay / 1000)} 秒后重试）。原因：${cause.slice(0, 180)}`);
       await recoverBackgroundCapture(settings);
       await sleep(delay);
       continue;
@@ -133,7 +315,7 @@ async function autoLoop(settings) {
         if (stillSameItem) {
           emitStatus("recovering", `当前评分已填写，但网页没有切换；正在重新确认并触发下一张（第 ${transitionRecoveryCount} 次）`);
           try {
-            reapplyCurrentEvaluation(outcome.result);
+            reapplyCurrentEvaluation(outcome.result, settings);
             await sleep(320);
             await clickNextSafely({
               useBackground: settings.backgroundCapture === true,
@@ -172,6 +354,9 @@ async function runOne({ advance = false, settings = {}, preserveViewer = false }
     browserArchiveEnabled: settings.browserArchiveEnabled !== false,
     diskArchiveEnabled: settings.diskArchiveEnabled === true,
     requireDiskBackup: settings.requireDiskBackup !== false,
+    redoClearComments: settings.redoClearComments === true,
+    abnormalReviewCategory: settings.abnormalReviewCategory || "",
+    abnormalReviewSourceId: settings.abnormalReviewSourceId || "",
     ...currentArchiveTaskIdentity()
   };
   const complete = (result, details) => finishEvaluation(result, { ...details, runDetails });
@@ -268,8 +453,13 @@ async function runOne({ advance = false, settings = {}, preserveViewer = false }
     ).catch(() => sourceFallback);
   }
   const targetMaster = targetCandidate?.image || targetFallback;
-  const [sourceOverview, targetOverview] = await Promise.all([
-    resizeForModel(sourceFallback, 1800),
+  // The yellow fill and thin blue frame belong to Papago's selection UI. They
+  // are useful for locating the block, but must never be judged as source art.
+  const sourceLocatorImage = sourceFallback;
+  const sourceCleanMaster = sourceCandidate?.image || sourceFallback;
+  const [sourceLocatorOverview, sourceOverview, targetOverview] = await Promise.all([
+    resizeForModel(sourceLocatorImage, 1800),
+    resizeForModel(sourceCleanMaster, 1800),
     resizeForModel(targetMaster, 2600)
   ]);
   let focus = highlightDetection
@@ -277,18 +467,21 @@ async function runOne({ advance = false, settings = {}, preserveViewer = false }
     : null;
   // A color-only fallback is often the wrong product/button region. Do not bias the model with it.
   let sourceGuideHint = focus && String(highlightDetection?.mode || "").startsWith("blue-frame") && highlightDetection.confidence >= 0.65
-    ? await upscaleForModel(await cropNormalized(sourceFallback, focus), 900, 8) : "";
-  const needsModelSourceLocation = !highlightDetection || !focus || !String(highlightDetection.mode || "").startsWith("blue-frame") ||
-    highlightDetection.confidence < 0.88 || highlightDetection.separation < 1.25 || highlightDetection.candidateCount > 3;
+    ? await upscaleForModel(await cropNormalized(sourceLocatorImage, focus), 900, 8) : "";
+  const reliableBlueFrame = Boolean(highlightDetection && focus &&
+    String(highlightDetection.mode || "").startsWith("blue-frame") &&
+    highlightDetection.confidence >= (highlightDetection.mode === "blue-frame-dom" ? 0.76 : 0.84) &&
+    Number(highlightDetection.frameQuality || 0.5) >= 0.42);
+  const needsModelSourceLocation = !reliableBlueFrame;
   let sourceLocationRounds = 0;
   let sourceLocateError = "";
   if (needsModelSourceLocation) {
-    const sourceTiles = await createOverlappingTiles(sourceFallback);
+    const sourceTiles = await createOverlappingTiles(sourceLocatorImage);
     for (const level of [0, 1, 2]) {
       assertCurrentTask(itemKeyAtStart);
       emitStatus("analyzing", `原文高亮定位第 ${level + 1} 轮${level ? "（已切换思考并使用分块）" : ""}`);
       const response = await chrome.runtime.sendMessage({
-        type: "LOCATE_SOURCE_BLOCK", sourceImage: sourceOverview, sourceHint: sourceGuideHint,
+        type: "LOCATE_SOURCE_BLOCK", sourceImage: sourceLocatorOverview, sourceHint: sourceGuideHint,
         tiles: level ? sourceTiles : [], recoveryLevel: level,
         requestSettings: modelRequestSettings(settings)
       });
@@ -300,15 +493,15 @@ async function runOne({ advance = false, settings = {}, preserveViewer = false }
         break;
       }
       sourceLocateError = response?.error || "未找到高亮块";
-      if (isFatalApiError(sourceLocateError)) throw new Error(sourceLocateError);
+      if (isFatalApiError(sourceLocateError) || isTransientApiError(sourceLocateError)) throw new Error(sourceLocateError);
     }
   }
   if (!focus || !highlightDetection) {
     const fallback = makeFallbackResult("uncertain", settings, `多轮原文高亮定位仍失败：${sourceLocateError || "未找到高亮块"}`);
-    return complete(fallback, { progressAtStart, itemKeyAtStart, visualState, advance, captureInfo: "原文多轮定位失败，使用3/3中间档自动兜底" });
+    return complete(fallback, { progressAtStart, itemKeyAtStart, visualState, advance, captureInfo: "原文最多3轮定位仍失败，使用3/3中间档自动兜底；不是规则N/A" });
   }
   const tightFocus = boxFromDetection(highlightDetection, sourceViewRect);
-  const sourceGuideRaw = await cropNormalized(sourceFallback, focusFromBox(tightFocus, 0.28, 0.50));
+  const sourceGuideRaw = await cropNormalized(sourceCleanMaster, focusFromBox(tightFocus, 0.28, 0.50));
   const sourceDetail = await upscaleForModel(sourceGuideRaw, 1200, 12);
   let sourceEnhanced = await enhanceTextImage(sourceGuideRaw);
   if (sourceCandidate?.image) {
@@ -334,7 +527,8 @@ async function runOne({ advance = false, settings = {}, preserveViewer = false }
     assertCurrentTask(itemKeyAtStart);
     if (response?.ok && response.location) {
       const candidate = response.location;
-      if (!candidate.found && ["no_output", "page_error"].includes(candidate.state)) {
+      if ((!candidate.found && ["no_output", "page_error"].includes(candidate.state)) ||
+          (candidate.found && ["untranslated", "source_unreadable"].includes(candidate.state))) {
         if (specialStateCandidate?.state === candidate.state) {
           located = candidate;
           break;
@@ -347,23 +541,23 @@ async function runOne({ advance = false, settings = {}, preserveViewer = false }
       break;
     }
     targetLocateError = response?.error || "未找到对应译文";
-    if (isFatalApiError(targetLocateError)) throw new Error(targetLocateError);
+    if (isFatalApiError(targetLocateError) || isTransientApiError(targetLocateError)) throw new Error(targetLocateError);
   }
   if (located && !located.found && ["no_output", "page_error"].includes(located.state)) {
     const fallback = makeFallbackResult("na", settings, located.state === "page_error" ? "译图显示错误或无结果页面" : "译图没有生成可评价结果");
-    return complete(fallback, { progressAtStart, itemKeyAtStart, visualState, advance, captureInfo: `译图定位判定为${located.state}，按规则自动填写NA/NA` });
+    return complete(fallback, { progressAtStart, itemKeyAtStart, visualState, advance, captureInfo: `译图重新读取后仍两轮判定为${located.state}，按规则自动填写NA/NA` });
   }
   if (located?.found && located.state === "untranslated") {
     const names = languagePairNames(languagePair);
     const fallback = makeFallbackResult("untranslated", settings, `译文定位阶段已确认对应位置仍保留${names.source}，没有${names.target}译文`);
     return complete(fallback, { progressAtStart, itemKeyAtStart, visualState, advance,
-      captureInfo: "译文定位确认未翻译，按规则自动填写翻译1、渲染NA" });
+      captureInfo: "译文定位连续确认未翻译，按规则自动填写翻译1、渲染NA" });
   }
   if (!located?.box) {
     const fallback = makeFallbackResult("uncertain", settings,
       `译文多轮定位仍失败：${targetLocateError || "无法确认对应区域"}`);
     return complete(fallback, { progressAtStart, itemKeyAtStart, visualState, advance,
-      captureInfo: "译文多轮定位失败，使用3/3中间档自动兜底；未经双轮确认不会误填NA" });
+      captureInfo: "译文最多3轮定位失败，使用3/3中间档自动兜底；不会误填NA" });
   }
   const targetFocus = targetFocusFromBox(located.box);
   const targetCrop = await cropNormalized(targetMaster, targetFocus);
@@ -379,7 +573,7 @@ async function runOne({ advance = false, settings = {}, preserveViewer = false }
     label: `第 ${progressAtStart || "当前"} 张 · 实际送评的译文近景${targetCandidate?.image ? "（原始图片裁剪）" : "（截图裁剪）"}`
   }).catch(() => null);
   const imageModes = {
-    sourceOverview: "页面当前完整原图视图（保留高亮框和实际显示效果）",
+    sourceOverview: "网页原始干净图；黄色填充和蓝色细框仅用于定位，已排除在渲染评价之外",
     targetOverview: "用于定位的完整译图；图4直接从这张图的原始分辨率裁剪",
     sourceDetail: sourceDetailMode,
     targetDetail: targetDetailMode,
@@ -387,7 +581,7 @@ async function runOne({ advance = false, settings = {}, preserveViewer = false }
     focusConfidence: highlightDetection?.confidence || 0
   };
   assertCurrentTask(itemKeyAtStart);
-  const cacheKey = `${chrome.runtime.getManifest().version}:${languagePair}:${settings.model || "deepseek-flash"}:${settings.qualityMode || "quality"}:${settings.commentMode || "bilingual"}:${itemKeyAtStart}:${quickHash(sourceOverview)}:${quickHash(targetOverview)}:${quickHash(sourceDetail)}:${quickHash(targetDetail)}`;
+  const cacheKey = `${PIPELINE_CACHE_VERSION}:${languagePair}:${settings.model || "deepseek-flash"}:${settings.qualityMode || "quality"}:${effectiveCommentMode(settings)}:${itemKeyAtStart}:${quickHash(sourceOverview)}:${quickHash(targetOverview)}:${quickHash(sourceDetail)}:${quickHash(targetDetail)}`;
 
   const context = `${collectContext(highlightDetection)}；译文定位初判状态：${located.state || "normal"}`;
   const detectorStatus = String(highlightDetection?.mode || "").startsWith("blue-frame")
@@ -415,14 +609,14 @@ async function runOne({ advance = false, settings = {}, preserveViewer = false }
     assertCurrentTask(itemKeyAtStart);
     if (!evaluated?.ok) {
       evaluationError = evaluated?.error || "评分请求失败";
-      if (isFatalApiError(evaluationError)) throw new Error(evaluationError);
+      if (isFatalApiError(evaluationError) || isTransientApiError(evaluationError)) throw new Error(evaluationError);
       continue;
     }
     lastResult = evaluated.result;
     lastReasons = assessReliability(lastResult, { focusFound: true });
     if (lastResult.needs_review) lastReasons.push(lastResult.reason || "模型要求复核");
     if (settings.pauseOnLowConfidence !== false && lastResult.confidence < threshold) lastReasons.push(`置信度低于${threshold.toFixed(2)}`);
-    if (!lastReasons.length || ["untranslated", "no_output", "page_error"].includes(lastResult.evaluation_state)) break;
+    if (!lastReasons.length || ["untranslated", "no_output", "page_error", "omitted", "source_unreadable"].includes(lastResult.evaluation_state)) break;
   }
   let result = lastResult;
   if (!result || lastReasons.length || result.evaluation_state === "unreadable") {
@@ -448,7 +642,15 @@ async function finishEvaluation(result, { progressAtStart, itemKeyAtStart, visua
   result.task_id = runDetails.taskId || location.pathname;
   result.batch_code = runDetails.batchCode || "";
   result.task_route = runDetails.taskRoute || "";
-  await fillEvaluation(result);
+  result.review_category = runDetails.abnormalReviewCategory || "";
+  result.review_source_record_id = runDetails.abnormalReviewSourceId || "";
+  result.redo_clear_comments = runDetails.redoClearComments === true;
+  if (result.redo_clear_comments) {
+    result.comment_zh = "";
+    result.comment_ko = "";
+    result.comment = "";
+  }
+  await fillEvaluation(result, { redoClearComments: result.redo_clear_comments });
   const saved = await chrome.runtime.sendMessage({
     type: "SAVE_HISTORY_ENTRY", result,
     archiveOptions: {
@@ -546,14 +748,24 @@ function isFatalApiError(message) {
   return /(?:HTTP\s*(?:400|401|403|404))|api\s*key|密钥|鉴权|认证|unauthorized|forbidden|余额|insufficient|quota|安全请求上限/i.test(String(message || ""));
 }
 
+function isTransientApiError(message) {
+  return /网络|failed\s+to\s+fetch|networkerror|timeout|timed\s*out|connection\s+refused|HTTP\s*(?:408|429|500|502|503|504)|internal[_ -]?server|service[_ -]?unavailable|temporar|resource\s+exhausted|throttl/i.test(String(message || ""));
+}
+
 function modelRequestSettings(settings) {
   return {
     model: settings?.model || "deepseek-flash",
     qwenEndpoint: settings?.qwenEndpoint || "",
     languagePair: normalizeLanguagePair(settings?.languagePair),
     qualityMode: settings?.qualityMode || "quality",
-    commentMode: settings?.commentMode || "bilingual"
+    commentMode: effectiveCommentMode(settings),
+    bypassCache: settings?.forceReevaluation === true
   };
+}
+
+function effectiveCommentMode(settings) {
+  if (settings?.redoClearComments === true) return "none";
+  return ["bilingual", "chinese", "none"].includes(settings?.commentMode) ? settings.commentMode : "bilingual";
 }
 
 function normalizeLanguagePair(value) {
@@ -664,7 +876,7 @@ function assertPageLanguagePair(configuredPair) {
 }
 
 function makeFallbackResult(kind, settings, reason) {
-  const commentMode = ["bilingual", "chinese", "none"].includes(settings?.commentMode) ? settings.commentMode : "bilingual";
+  const commentMode = effectiveCommentMode(settings);
   const languagePair = normalizeLanguagePair(settings?.languagePair);
   const untranslated = {
     "ja-zh": {
@@ -703,6 +915,11 @@ function makeFallbackResult(kind, settings, reason) {
       zh: untranslated.zh,
       ko: untranslated.ko
     },
+    omitted: {
+      evaluation_state: "omitted", translation_score: 1, rendering_score: 3, confidence: 0.72,
+      zh: "原文对应的文字块在译图中被直接删除，既没有保留原文，也没有生成译文，属于整块漏译。",
+      ko: "원문에 대응하는 텍스트 블록이 번역 이미지에서 삭제되어 원문도 번역문도 남지 않았으므로 전체 누락으로 판단했습니다."
+    },
     uncertain: {
       evaluation_state: "unreadable", translation_score: 3, rendering_score: 3, confidence: 0.72,
       zh: "这个文本块比较小，多轮放大后仍不能完全确认，先按中间档评分。",
@@ -724,7 +941,7 @@ function makeFallbackResult(kind, settings, reason) {
 
 function assessReliability(result, { focusFound }) {
   const reasons = [];
-  const state = ["normal", "untranslated", "no_output", "page_error", "unreadable"].includes(result.evaluation_state)
+  const state = ["normal", "untranslated", "omitted", "source_unreadable", "no_output", "page_error", "unreadable"].includes(result.evaluation_state)
     ? result.evaluation_state : "normal";
   const sourceText = String(result.source_text || "").trim();
   const targetText = String(result.target_text || "").trim();
@@ -732,6 +949,15 @@ function assessReliability(result, { focusFound }) {
   const explanation = `${result.comment || ""} ${result.reason || ""} ${allIssues}`;
   if (!focusFound) reasons.push("没有可靠定位高亮块");
   if (["no_output", "page_error"].includes(state)) return reasons;
+  if (state === "source_unreadable") {
+    if (result.rendering_score === "NA") reasons.push("原文客观不可辨认时仍应单独评价渲染");
+    return reasons;
+  }
+  if (state === "omitted") {
+    if (result.translation_score !== 1) reasons.push("整块漏译的翻译分必须为1");
+    if (result.rendering_score === "NA") reasons.push("整块漏译仍有可见译图，应单独评价渲染");
+    return reasons;
+  }
   if (state === "untranslated") {
     if (!sourceText) reasons.push("未翻译判断缺少原文证据");
   } else if (!sourceText || !targetText) reasons.push("原文或译文识别不完整");
@@ -1195,15 +1421,18 @@ function loadImage(src) {
   });
 }
 
-async function fillEvaluation(result) {
+async function fillEvaluation(result, { redoClearComments = false } = {}) {
   const translationCard = findRatingCard(findHeading("translation"));
   const renderingCard = findRatingCard(findHeading("rendering"));
   selectRating(translationCard, result.translation_score);
   selectRating(renderingCard, result.rendering_score);
 
-  const field = document.querySelector('textarea, input[class*="form_input"]');
+  const fields = findCommentFields();
+  const field = fields[0];
   if (result.comment_ko && !field) throw new Error("需要填写韩文评论，但没有找到评论输入框");
-  if (field) {
+  if (redoClearComments) {
+    await clearExistingComments({ verify: true });
+  } else if (field) {
     setNativeValue(field, result.comment_ko || "");
     field.dispatchEvent(new Event("input", { bubbles: true }));
     field.dispatchEvent(new Event("change", { bubbles: true }));
@@ -1298,26 +1527,60 @@ async function clickNextSafely({ useBackground = false, forceBackground = false 
   return { ok: true, clicked: true, mode: "content-script-click" };
 }
 
+function findCommentFields() {
+  return [...document.querySelectorAll('textarea, input[class*="form_input"]')]
+    .filter((field) => field instanceof HTMLTextAreaElement || field instanceof HTMLInputElement)
+    .filter((field) => !(field instanceof HTMLInputElement) || !field.type || ["text", "search"].includes(field.type));
+}
+
+async function clearExistingComments({ verify = false } = {}) {
+  const fields = findCommentFields();
+  for (const field of fields) {
+    setNativeValue(field, "");
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    field.dispatchEvent(new Event("change", { bubbles: true }));
+    field.blur();
+  }
+  if (!verify || !fields.length) return fields.length;
+  await sleep(80);
+  const remaining = fields.filter((field) => String(field.value || "").trim());
+  if (remaining.length) {
+    for (const field of remaining) {
+      setNativeValue(field, "");
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+      field.blur();
+    }
+    await sleep(80);
+  }
+  if (fields.some((field) => String(field.value || "").trim())) {
+    throw new Error("页面已有评论未能清空，已停止以避免带评论提交");
+  }
+  return fields.length;
+}
+
 function refreshFilledEvaluationSignals() {
   for (const radio of document.querySelectorAll('input[type="radio"]:checked')) {
     radio.dispatchEvent(new Event("input", { bubbles: true }));
     radio.dispatchEvent(new Event("change", { bubbles: true }));
   }
-  const field = document.querySelector('textarea, input[class*="form_input"]');
-  if (field) {
+  for (const field of findCommentFields()) {
     field.dispatchEvent(new Event("input", { bubbles: true }));
     field.dispatchEvent(new Event("change", { bubbles: true }));
     field.blur();
   }
 }
 
-function reapplyCurrentEvaluation(result) {
+function reapplyCurrentEvaluation(result, settings = runState.settings || {}) {
   const translationCard = findRatingCard(findHeading("translation"));
   const renderingCard = findRatingCard(findHeading("rendering"));
   selectRating(translationCard, result.translation_score);
   selectRating(renderingCard, result.rendering_score);
-  const field = document.querySelector('textarea, input[class*="form_input"]');
-  if (field) {
+  const fields = findCommentFields();
+  if (settings.redoClearComments === true) {
+    for (const field of fields) setNativeValue(field, "");
+  } else if (fields[0]) {
+    const field = fields[0];
     setNativeValue(field, result.comment_ko || "");
   }
   refreshFilledEvaluationSignals();
@@ -1331,15 +1594,29 @@ async function waitForNetworkRecovery() {
 }
 
 function readProgress() {
-  const current = Number(document.querySelector('input[class*="progress_current_input"]')?.value || 0);
+  const { input, range } = findProgressControls();
+  const inputCurrent = Number(input?.value || 0);
+  const rangeCurrent = Number(range?.value || 0);
   const totalMatch = document.body.innerText.match(/\/\s*([0-9]{1,7})/);
-  return { current, total: Number(totalMatch?.[1] || 0) };
+  const rangeTotal = Number(range?.max || 0);
+  return {
+    current: rangeCurrent > 0 ? rangeCurrent : inputCurrent,
+    total: rangeTotal > 0 ? rangeTotal : Number(totalMatch?.[1] || 0),
+    inputCurrent,
+    rangeCurrent
+  };
 }
 
 function currentItemKey() {
-  const progress = document.querySelector('input[class*="progress_current_input"]')?.value || "";
-  const main = document.body.innerText.match(/(?:原版|Original|원본)\s*([0-9]+)/i)?.[1] || "";
+  const progress = readProgress().current || "";
+  const main = readGuideItemNumber();
   return `${progress}:${main}:${location.href}`;
+}
+
+function readGuideItemNumber() {
+  const pageText = document.body.innerText || "";
+  return pageText.match(/(?:^|\n)\s*(\d{1,7})\s*(?:원본\s*블록\s*가이드|原文\s*块\s*指南|Original\s*Block\s*Guide)/im)?.[1] ||
+    pageText.match(/(?:원본\s*블록\s*가이드|原文\s*块\s*指南|Original\s*Block\s*Guide)\s*(\d{1,7})/im)?.[1] || "";
 }
 
 async function waitForNextItemReady(before, timeoutMs, backgroundCapture = false) {
@@ -1427,7 +1704,7 @@ function ratingSelectionsCleared() {
 function isRecoverableRunError(error) {
   const message = String(error?.message || error || "");
   if (/401|403|api\s*key|密钥|鉴权|认证|unauthorized|forbidden|余额|insufficient|quota|安全请求上限|语言方向不一致/i.test(message)) return false;
-  return /截图|调试器|页面当前不可见|图片|图像|加载|切换|稳定|任务已切换|未找到翻译评分区域|读取网页原图|下一张按钮|评分已点击|页面.*接受|网络|failed\s+to\s+fetch|networkerror|timeout|timed\s*out|connection\s+refused|HTTP\s*(?:408|429|500|502|503|504)|internal[_ -]?server|service[_ -]?unavailable|temporar|resource\s+exhausted|throttl/i.test(message);
+  return /截图|调试器|页面当前不可见|图片|图像|加载|切换|跳转|稳定|任务已切换|未找到翻译评分区域|读取网页原图|下一张按钮|评分已点击|页面.*接受|网络|failed\s+to\s+fetch|networkerror|timeout|timed\s*out|connection\s+refused|HTTP\s*(?:408|429|500|502|503|504)|internal[_ -]?server|service[_ -]?unavailable|temporar|resource\s+exhausted|throttl/i.test(message);
 }
 
 async function recoverBackgroundCapture(settings) {
@@ -1460,8 +1737,16 @@ function nativePaneVisualState(panes) {
     : "";
   return {
     sourceNative: quickHash(`${paneMediaIdentity(panes?.source)}|highlight:${highlightIdentity}`),
-    targetNative: paneMediaIdentity(panes?.target)
+    targetNative: paneMediaIdentity(panes?.target),
+    sourceMount: visualElementIdentity(panes?.source?.element),
+    targetMount: visualElementIdentity(panes?.target?.element)
   };
+}
+
+function visualElementIdentity(element) {
+  if (!element || (typeof element !== "object" && typeof element !== "function")) return "";
+  if (!visualElementIds.has(element)) visualElementIds.set(element, nextVisualElementId++);
+  return String(visualElementIds.get(element));
 }
 
 async function detectHighlightInImage(dataUrl, sourceRect) {
@@ -1662,10 +1947,9 @@ function canvasSampleHash(canvas) {
 }
 
 function collectContext(highlightDetection = null) {
-  const progress = document.querySelector('input[class*="progress_current_input"]')?.value || "未知";
+  const progress = readProgress().current || "未知";
   const pageText = document.body.innerText || "";
-  const guideMatch = pageText.match(/(?:^|\n)\s*(\d{1,4})\s*(?:원본\s*블록\s*가이드|原文\s*块\s*指南|Original\s*Block\s*Guide)/im);
-  const guide = guideMatch?.[1] || "未知";
+  const guide = readGuideItemNumber() || "未知";
   const locationHint = highlightDetection?.confidence < 0.7
     ? "本次视觉高亮定位较弱，高清局部已自动扩大；必须结合全貌中的高亮和块编号确认同一文本块，不要把灯光、路标或背景色当高亮。"
     : "本次视觉高亮定位较明确。";

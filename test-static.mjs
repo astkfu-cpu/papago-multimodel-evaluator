@@ -39,7 +39,8 @@ if (content.includes("composeComparison(")) throw new Error("Legacy merged-image
 if (!content.includes("waitForNextItemReady") || !content.includes("paneVisualState")) throw new Error("Stable next-item image guard missing");
 if (!content.includes("sourceChanged ||=") || !content.includes("targetChanged ||=") || !content.includes("stableCount >= 2") || !content.includes("imageSimilarity") || !content.includes("nativePaneVisualState")) throw new Error("Independent pane update guard missing");
 if (!content.includes("LOCATE_SOURCE_BLOCK") || !background.includes("locateSourceBlock")) throw new Error("Source-block model recovery missing");
-if (!content.includes("chrome.runtime.getManifest().version")) throw new Error("Versioned cache key missing");
+if (!content.includes('PIPELINE_CACHE_VERSION = "0.28.0"') || !background.includes('PIPELINE_CACHE_VERSION = "0.28.0"')) throw new Error("Current pipeline cache version missing");
+if (content.includes('`${chrome.runtime.getManifest().version}:${languagePair}') || background.includes('`${CACHE_SCHEMA}:${extensionVersion}:')) throw new Error("UI version must not invalidate pipeline caches");
 if (!background.includes('quality: { thinking: { type: "disabled" }, reasoning_effort: "none", max_tokens: 2200 }')) throw new Error("Stable continuous mode missing");
 if (!background.includes('thoughtful: { thinking: { type: "enabled" }, reasoning_effort: "low", max_tokens: 10000 }')) throw new Error("Thoughtful single-item mode missing");
 if (!background.includes('deep: { thinking: { type: "enabled" }, reasoning_effort: "high", max_tokens: 20000 }')) throw new Error("Deep single-item mode missing");
@@ -58,7 +59,7 @@ if (!background.includes('detail: "original"')) throw new Error("Full-resolution
 if (!background.includes("parseEventStream") || !background.includes("describePayload")) throw new Error("DeepSeek response diagnostics missing");
 if (!background.includes('response_format: { type: "json_object" }')) throw new Error("JSON response mode missing");
 if (!background.includes("evaluation_state") || !background.includes("untranslated") || !background.includes("page_error")) throw new Error("Special-state rubric missing");
-if (!background.includes("calibrateExtremeScores") || !background.includes("[满分证据]") || !background.includes("[极端低分证据]")) throw new Error("Extreme-score calibration missing");
+if (!background.includes("calibrateExtremeScores") || !background.includes("满分依据") || !background.includes("极端低分依据")) throw new Error("Extreme-score calibration missing");
 if (!content.includes("fallbackKind") || !content.includes('makeFallbackResult("na"')) throw new Error("Automatic special-state fallback missing");
 if (!background.includes("comment_zh") || !background.includes("comment_ko")) throw new Error("Bilingual comment fields missing");
 if (!content.includes("result.comment_ko")) throw new Error("Papago page is not filled with Korean comment");
@@ -80,7 +81,10 @@ if (!panel.includes('id="migrateLegacyArchive"') || !panel.includes('id="importA
 if (!content.includes("findVisibleHeaderBatchCode") || !content.includes("taskRoute")) throw new Error("Header task number classification missing");
 if (!content.includes("extractBatchCode") || !content.includes("shadowRoot")) throw new Error("Robust visible header task number scan missing");
 if (!panelScript.includes("taskScopeKey") || !panelScript.includes("TASK_PROFILES_KEY")) throw new Error("Per-task account isolation missing");
-if (!content.includes('CONTENT_BUILD_VERSION = "0.25.0"') || !panelScript.includes('PANEL_BUILD_VERSION = "0.25.0"')) throw new Error("Content/panel version handshake missing");
+if (!content.includes('CONTENT_BUILD_VERSION = "0.28.1"') || !panelScript.includes('PANEL_BUILD_VERSION = "0.28.1"')) throw new Error("Content/panel version handshake missing");
+if (content.includes("retryCurrentItemWithFreshImages") || !content.includes("isTransientApiError")) throw new Error("Redundant full-pipeline retry returned or transient API guard missing");
+if (!background.includes('TARGET_LOCATOR_CACHE_VERSION = "0.28.0"') || !background.includes('"omitted"')) throw new Error("Target omission semantics/cache version missing");
+if (!panel.includes('id="redoClearComments"') || !panelScript.includes("syncCommentModeUi") || !content.includes("clearExistingComments") || !content.includes("effectiveCommentMode")) throw new Error("Redo comment cleanup mode missing");
 if (!panel.includes('value="en-zh"') || !panel.includes('value="zh-en"') || !content.includes('"EN>ZH_CN": "en-zh"') || !content.includes('"ZH_CN>EN": "zh-en"')) throw new Error("English-Chinese bidirectional mode missing");
 if (!panel.includes('id="qualityMode"')) throw new Error("Quality mode selector missing");
 if (!panel.includes('id="languagePair"') || !panel.includes('value="zh-ja"') || !panelScript.includes("languagePair")) throw new Error("Chinese-to-Japanese direction selector missing");
@@ -96,7 +100,14 @@ if (!panelScript.includes("chrome.tabs.onActivated") || !content.includes("GET_R
 if (!content.includes("requestSettings: modelRequestSettings(settings)") || !background.includes("apiSettingsForMessage")) throw new Error("Per-tab model settings are not pinned to each run");
 if (!content.includes("backgroundCapture: settings.backgroundCapture === true") || !background.includes("requestedBackgroundCapture")) throw new Error("Per-tab background capture mode is not pinned to each run");
 if (!background.includes("saveHistoryEntry(message.result, sender.tab?.id)") || !panelScript.includes("entry.tabId === evaluationTabId")) throw new Error("History is not isolated by tab");
-if (!content.includes("未经双轮确认不会误填NA") || !content.includes('makeFallbackResult("uncertain", settings')) throw new Error("N/A confirmation guard missing");
+if (!content.includes("不会误填NA") || !content.includes('makeFallbackResult("uncertain", settings') || !content.includes("不是规则N/A")) throw new Error("N/A confirmation guard missing");
+if (!panel.includes('id="abnormalReviewCategory"') || !panelScript.includes("classifyArchiveAbnormal") || !content.includes("START_ABNORMAL_REVIEW")) throw new Error("Abnormal archive re-evaluation workflow missing");
+if (!content.includes("performVerifiedProgressJump") || !content.includes("progressMatchesTarget") || !content.includes("paneTransitionConfirmed")) throw new Error("Verified abnormal-review navigation missing");
+if (!content.includes("真实滑块") || !content.includes("没有重复评价当前图片")) throw new Error("Abnormal-review false-jump safety message missing");
+if (!content.includes("current: rangeCurrent > 0 ? rangeCurrent : inputCurrent")) throw new Error("Real range progress must take priority over editable page number");
+const jumpTransitionBody = content.slice(content.indexOf("function paneTransitionConfirmed"), content.indexOf("function visualStateIdentity"));
+if (jumpTransitionBody.includes("sourceMount") || jumpTransitionBody.includes("targetMount")) throw new Error("DOM remount alone must not prove an abnormal-review image transition");
+if (!content.includes("sourceCleanMaster") || !content.includes("黄色填充和蓝色细框仅用于定位")) throw new Error("Clean-source evaluation path missing");
 if (!background.includes("rubricForLanguagePair") || !background.includes("targetLocatorPromptForLanguagePair") || !content.includes("assertPageLanguagePair")) throw new Error("Language-direction prompt or page guard missing");
 if (!content.includes("GET_PAGE_CONTEXT") || !content.includes("settingsForCurrentPage") || !content.includes("已停止且不会默认使用日译中")) throw new Error("Current-page automatic language lock missing");
 if (!panel.includes('value="en-ja"') || !panel.includes('value="ja-en"') || !content.includes('"EN>JA": "en-ja"') || !content.includes('"JA>EN": "ja-en"')) throw new Error("English-Japanese bidirectional mode missing");

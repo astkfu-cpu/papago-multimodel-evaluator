@@ -42,6 +42,27 @@
     </section>
 
     <section class="card">
+      <h2>异常记录重新评价</h2>
+      <p class="hint">先由你打开正确账号与任务。本功能只读取当前账号标签、当前任务编号和翻译方向，按归档中的原图片编号跳转；页面未确认到目标编号时不会写入评分。</p>
+      <label>异常分类
+        <select id="abnormalReviewCategory">
+          <option value="high_risk">高风险异常（推荐）</option>
+          <option value="locator_fallback">识别/定位失败后3分</option>
+          <option value="questionable_na">可疑N/A或状态不一致</option>
+          <option value="special_state">未翻译/漏译特殊判定</option>
+          <option value="score_mismatch">满分依据与分数不一致</option>
+          <option value="network_scored">网络异常却写入评分</option>
+          <option value="all">全部异常</option>
+        </select>
+      </label>
+      <p id="abnormalReviewStats" class="hint">点击“刷新异常列表”读取当前任务归档。</p>
+      <div class="archive-actions">
+        <button id="refreshAbnormalReview" class="secondary">刷新异常列表</button>
+        <button id="startAbnormalReview" class="primary">按原编号开始复评</button>
+      </div>
+    </section>
+
+    <section class="card">
       <h2>模型与 API 设置</h2>
       <label>本地归档账号标签
         <input id="accountLabel" type="text" maxlength="60" value="" placeholder="当前任务账号，例如：账号A、学校账号">
@@ -90,6 +111,8 @@
           <option value="none">不生成评论（最省额度）</option>
         </select>
       </label>
+      <label class="check"><input id="redoClearComments" type="checkbox"> 重做清理模式：删除已有评论</label>
+      <p id="redoClearCommentsHint" class="hint">关闭时保持原有评论设置；开启后会在完成图像识别后、提交评分前清空页面已有评论，并禁止本轮重新生成或恢复评论。</p>
       <p id="providerHint" class="hint">密钥仅保存在本机浏览器的扩展存储中。</p>
       <button id="testApi" class="api-test">测试当前 API（少量额度）</button>
     </section>
