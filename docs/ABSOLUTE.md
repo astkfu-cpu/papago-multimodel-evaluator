@@ -1,11 +1,11 @@
-# 在线绝对打分插件
+# Online absolute evaluator
 
-版本 0.28.1，安装目录为仓库根目录。核心维护者 astkfu-cpu，插件免费提供，模型 API 由使用者自行付费。已与离线成对评价模块在同一项目持续维护。
+Version **0.28.1**, loaded from the repository root. Core maintainer: astkfu-cpu. The plugin is free; users configure and pay for their own DeepSeek/Qwen API calls.
 
-适配 Papago Pro 当前任务的原图、译图和目标块，支持 DeepSeek / 千问。原图和译图独立定位，必要时读取原始高清资源或使用调试协议截图；按任务方向和模型隔离缓存；保留翻译、渲染分数、评论及浏览器长期归档。
+This module adapts the supported Papago Pro source image, translated image and designated target block. Source/target regions are located independently; native high-resolution resources or debugger-assisted captures may be used. Cache entries are isolated by direction/model. Scores, comments and browser archives are retained.
 
-安装：在扩展管理页加载仓库根目录，刷新评价页面，在侧栏配置模型和密钥。先用“只评当前张”人工核对，再按需连续运行。更新覆盖原目录并重新加载，勿为更新卸载扩展。
+Load the root directory, refresh the authorized task page, configure the side panel, and review one item before any optional batch. Update in the same directory and reload the existing installation.
 
-本模块是历史绝对评分工作流，包含 1–5 / N/A 及定位失败时可能使用的 3/3 中间档兜底；兜底不是人工确认结果。不要将这些旧规则用于 `pairwise/` 的 A/B 比较。旧版的自动化、多窗口或评论清理功能应按具体任务授权使用。
+This is a legacy 1–5/N/A workflow. It includes a possible 3/3 midpoint fallback when localization fails; such a fallback is not human-confirmed evidence. The pairwise extension has separate A/tie/B criteria and failure handling. Any automation, window or comment-management behavior requires authorization for the relevant task.
 
-维护经过见 [历史记录](ABSOLUTE_HISTORY.md) 和 [CHANGELOG](../CHANGELOG.md)。
+See [English maintenance summary](ABSOLUTE_HISTORY.en.md), [original Chinese history](ABSOLUTE_HISTORY.md) and [changelog](../CHANGELOG.md).

@@ -1,55 +1,76 @@
 # Papago Translation Evaluation Toolkit
 
-[中文](README.md) · [Download packages](dist/README.md) · [Installation](docs/INSTALLATION.md) · [Usage evidence](docs/USAGE_EVIDENCE.md)
+[中文说明](README.zh-CN.md) · [Releases](https://github.com/astkfu-cpu/papago-multimodel-evaluator/releases) · [Install](docs/INSTALLATION.md) · [Evidence](docs/USAGE_EVIDENCE.md) · [Maintainer](MAINTAINERS.md)
 
-Two independently maintained Edge / Chrome extensions for Papago-related image translation evaluation: online absolute scoring and offline whole-image pairwise comparison.
+[![Tests](https://github.com/astkfu-cpu/papago-multimodel-evaluator/actions/workflows/ci.yml/badge.svg)](https://github.com/astkfu-cpu/papago-multimodel-evaluator/actions/workflows/ci.yml)
+![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 
-**Core maintainer: [astkfu-cpu](https://github.com/astkfu-cpu).** Responsible for task requirements, workflow and rule adaptation, implementation, debugging, release maintenance and translator support, with AI-assisted development and testing where appropriate.
+Two Edge / Chrome extensions that assist image-translation evaluation: online absolute scoring and offline whole-image A/B comparison. They help reviewers collect image evidence, compare translation and rendering separately, keep reasons, and organize local records.
 
-The maintainer has provided the extensions free of charge to multiple translators across two real evaluation task rounds, refining them through repeated use and feedback. **Users supply their own API keys and pay model API charges themselves.** This is an independent project, not an official NAVER / Papago integration or endorsement.
+**Core maintainer: [astkfu-cpu](https://github.com/astkfu-cpu)** — requirements, workflow adaptation, implementation, bug reproduction, regression checks, releases and translator support, with Codex-assisted development.
 
-## Choose the right module
+The maintainer has provided the tools free to multiple translators across two real evaluation task rounds. **The plugins are free; users configure their own API keys and pay model API charges.** This independent project adapts Papago-related evaluation workflows; it has no official NAVER/Papago affiliation or endorsement.
 
-| Module | Version | Workflow | Load directory |
+## Start with the public demo
+
+[Download the standalone demo](https://github.com/astkfu-cpu/papago-multimodel-evaluator/releases/tag/demo-v1.0.0), unzip it and open `index.html` in Edge/Chrome. Its built-in simulation needs no extension, customer package, network access or API key. All demo images and page code are self-authored. Simulated decisions are explicitly labelled; they are not a model accuracy benchmark.
+
+For a real model call on these public images, load the pairwise extension and configure your own key. See [demo instructions](demo/README.en.md) and the [English UI guide](docs/UI_GUIDE.md).
+
+![Self-authored offline demo with an explicitly simulated result](docs/screenshots/public-demo.png)
+
+## Choose a module
+
+| Module | Current version | Input and output | Load directory |
 | --- | --- | --- | --- |
-| Absolute evaluator | 0.28.1 | Papago Pro source/translated image target-block scoring | Repository root |
-| Pairwise evaluator | 1.1.0 | Complete source/A/B images; independent translation and rendering winners | `pairwise/` |
+| [Absolute evaluator](docs/ABSOLUTE.md) | 0.28.1 | Source/translated image target blocks; translation/rendering scores | Repository root |
+| [Pairwise evaluator](pairwise/README.en.md) | 1.1.0-public.1 | Complete source/A/B images; separate A/tie/B decisions, reasons and archives | `pairwise/` |
 
-The pairwise module reads complete local image resources, checks direction and item identity per question, records both reasons, supports optional batches and exports durable offline reports. It never treats an API or image-loading failure as a tie. The legacy absolute workflow has different scoring rules and fallback behavior; see [known limitations](docs/KNOWN_LIMITATIONS.md).
+The modules have separate manifests, databases and evaluation rules. The public pairwise release uses a generic comparison template; internal customer rubrics are excluded and require separately authorized configuration.
 
-## Install
+## Install and use
 
-1. Download the corresponding ZIP from [dist](dist/README.md), or clone the repository, then extract fully.
-2. Open `edge://extensions/` or `chrome://extensions/`, enable Developer mode, and load the module directory containing `manifest.json`.
-3. For the offline module, enable **Allow access to file URLs** in extension details. Open your authorized task package's `index.html`.
-4. Configure your own API key in the side panel. Test connectivity and review one item before starting a batch.
-5. To update, stop work, export backups, overwrite the same extension directory, reload the extension and refresh the task page. Keep the existing extension installation to preserve its local settings and archive.
+1. Download a module ZIP from [Releases](https://github.com/astkfu-cpu/papago-multimodel-evaluator/releases) and extract it fully.
+2. Open `edge://extensions/` or `chrome://extensions/`, enable Developer mode, then load the folder containing `manifest.json`.
+3. For offline comparison, enable **Allow access to file URLs** and open the extracted task's `index.html`.
+4. Configure your own Qwen/DashScope or DeepSeek key as supported by the selected module. Review a single item before using optional continuous mode.
+5. Before updating, stop work and export backups. Overwrite the same extension directory, reload the existing extension and refresh the task page. Keep the same installation/profile to preserve its ID and records.
 
-## Evidence and maintenance
+[Full installation guide](docs/INSTALLATION.md) · [Archive backup and restore](docs/ARCHIVE_BACKUP.md) · [Known limitations](docs/KNOWN_LIMITATIONS.md)
 
-The supplied pairwise archives contain 47 evaluator accounts, six language directions and 37,497 analysis records. After deduplicating by account, task and item, 37,471 item records remain, with 37,431 marked applied. The maintainer confirms the accounts were used by multiple translators; account and record counts are reported with their methodology rather than presented as telemetry or independently audited headcounts. See the [evidence report](docs/USAGE_EVIDENCE.md), [anonymized result](examples/pairwise/evaluation-result.json) and [offline archive excerpt](examples/pairwise/archive-sample.html).
+## What can be verified
 
-Maintenance includes independent source/target localization, native-image cropping, background reading, progress consistency, direction isolation, bounded API retries, structured-result recovery and archive-preserving updates. [CHANGELOG](CHANGELOG.md) distinguishes archived local versions from previously public Git history; no commit dates have been backdated.
+| Evidence | Scope |
+| --- | --- |
+| Two task rounds and use by multiple translators | Maintainer-reported practice; free plugins, user-funded APIs |
+| 47 archive files / 47 work accounts | Supplied pairwise HTML archive snapshot, 21 October 2026 |
+| 37,471 deduplicated item records | 37,497 raw analysis records; 37,431 marked applied |
+| Three language groups / six directions | English, Japanese and Simplified Chinese |
+| Automated browser and upgrade checks | Mocked API responses and isolated browser profiles |
+
+The [evidence report](docs/USAGE_EVIDENCE.md) gives the counting method and limitations. Account labels are translators' working aliases, not legal names; public examples are further anonymized. Activity counts are not independently audited headcounts, client acceptance or accuracy results.
+
+[Actual anonymized example](examples/README.md) · [English explanation of the stored model result](examples/pairwise/REVIEW.en.md) · [Machine-readable summary](examples/usage-summary.json)
+
+## Maintenance and tests
+
+Pairwise 1.1.0 adds stale-suggestion invalidation, a clear model self-reported confidence label, versioned JSON backup/restore with duplicate/conflict preservation, and filtered exports of at most 500 records per batch. Backend item checks remain in place before filling. An API or image-loading failure is never automatically converted into a tie.
 
 ```sh
+npm install
 npm test
+npm run verify:releases
+npx playwright install chromium
+npm run test:demo
+npm run test:upgrade
 ```
 
-Tests use synthetic data and mocked model responses. Browser and upgrade checks are documented in [TESTING](docs/TESTING.md). They validate control flow and storage, not model accuracy. No speedup percentage or human-versus-model accuracy claim is made without a measured comparison.
+The public fixture lets reviewers reproduce browser checks without a customer package or paid API call. See [testing](docs/TESTING.md), [changelog](CHANGELOG.md), [Releases](https://github.com/astkfu-cpu/papago-multimodel-evaluator/releases) and [commit history](https://github.com/astkfu-cpu/papago-multimodel-evaluator/commits/main/). Local historical versions were imported on the actual publication date; commit dates were not backfilled.
 
-## Feedback, privacy and license
+No independent human accuracy benchmark or public user interview has been completed. The [evaluation plan](docs/EVALUATION.md) and [feedback process](docs/USER_FEEDBACK.md) explain what remains to collect. Model confidence is self-reported and uncalibrated.
 
-Report reproducible issues at [GitHub Issues](https://github.com/astkfu-cpu/papago-multimodel-evaluator/issues). Include browser/extension versions, expected behavior and redacted error details; do not post credentials or private task exports.
+## Contribute, privacy and license
 
-See [PRIVACY](PRIVACY.md), [SECURITY](SECURITY.md), [MAINTAINERS](MAINTAINERS.md) and [MIT LICENSE](LICENSE). Public examples have their own [data notice](examples/README.md); the code license does not grant rights to private customer datasets or third-party brands/images.
+Use [GitHub Issues](https://github.com/astkfu-cpu/papago-multimodel-evaluator/issues/new/choose) for reproducible, redacted reports. See [contribution guidance](CONTRIBUTING.md), [security](SECURITY.md), [English privacy notice](PRIVACY.en.md) and [MIT License](LICENSE).
 
-Names and account labels in the source records are translators' working aliases, not legal names. Published examples use additional anonymous identifiers and do not disclose personal mappings.
-
-
-The public pairwise module uses a generic evaluation template. Internal customer rubrics are excluded; task-specific configuration must be supplied separately in an authorized environment. Existing private installations and archives are unchanged.
-
-## Reproducible demo and archive recovery
-
-Download the [standalone demo](dist/papago-public-demo-1.0.0.zip), unzip and open index.html. It uses self-authored images and an explicitly simulated result, without a customer package, API key or network access. Real analysis is optional and billed to the user's own API account. See [demo instructions](demo/README.md).
-
-Pairwise 1.1.0 invalidates mismatched suggestions, labels confidence as model self-reported (not accuracy), and adds versioned JSON backup with restore preview, duplicate/conflict preservation and bounded filtered exports. See [archive recovery](docs/ARCHIVE_BACKUP.md), [Releases](https://github.com/astkfu-cpu/papago-multimodel-evaluator/releases), [evaluation plan](docs/EVALUATION.md) and [real feedback collection](docs/USER_FEEDBACK.md). No independent human accuracy benchmark or public user interview has been completed; simulations and archive counts are not substitutes.
+Current extension UI labels and stored model rationales are primarily Chinese. The English documentation and UI glossary provide a review path; translated example commentary is kept separate from original records. Existing release ZIPs retain their published bytes and checksums. Private customer-specific installations and archives are maintained separately.

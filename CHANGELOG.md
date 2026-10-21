@@ -1,45 +1,46 @@
-# 更新日志
+# Changelog
 
-本次公开整理于 2026-10-21。既有 GitHub 提交保持不变；下列本地版本在本次集中导入，提交时间记录实际发布日，不回填或伪造历史提交日期。
+[中文](CHANGELOG.zh-CN.md)
 
-## 成对评价 1.1.0-public.1 — 2026-10-21
+Local historical versions were publicly imported on **21 October 2026**. Existing GitHub history remains intact; import timestamps are actual publication dates and were not backfilled.
 
-- 根据公开审核反馈，页面变化时隐藏不匹配的旧建议并禁用填入，轮询核对题号、身份、图片和方向；保留后台二次检查。
-- 将置信度名称改为“模型自评置信度”，明确未校准、不代表准确率。
-- 新增独立版本的插件 JSON 备份、恢复前预览、重复/冲突检查及事务性缺失记录补入；不覆盖旧归档、设置或原表进度。
-- 日期/当前任务筛选与每批最多 500 条导出，避免界面一次加载全部归档。
-- 提供自制独立演示包，CI 加入模拟接口的浏览器流程检查，增加正式 Releases 发布与校验。
-- 提供真实反馈和人工对照评测的收集方案；不虚构已收到的反馈或准确率。
+## English review documentation — 21 October 2026
 
-## 成对评价 1.0.2
+- Make English the default repository README, retaining the Chinese entry point.
+- Add English installation, evidence, tests, backup/restore, maintainer, privacy, contribution, feedback and evaluation documentation.
+- Provide an English UI glossary and an English explanation alongside the unchanged original anonymized example.
+- Preserve published runtime/package bytes and checksums; translations are repository documentation updates.
 
-- 明确所有必填字段，兼容无歧义单项包装和合法枚举大小写。
-- 将 JSON/状态/理由格式修复与图像证据复核分开，最多额外重试两次，仍提供完整图片。
-- 保留内容审核拦截、低置信度及图片状态保护，不用平局补技术错误。
-- 保持旧 IndexedDB 数据库和设置，增加旧版覆盖升级回归测试。
+## Pairwise 1.1.0-public.1 — 21 October 2026
 
-## 成对评价 1.0.1
+- Hide mismatched suggestions on item/image/direction changes and disable filling; retain backend identity checks.
+- Label confidence as model self-reported and uncalibrated.
+- Add versioned plugin JSON backup, read-only preview, duplicate/conflict counts and transactional insertion of missing archive records only.
+- Add date/current-task filters and at most 500 records per export batch.
+- Add a self-authored public demo, mocked-API browser CI, package verification and formal Releases.
+- Document future human evaluation/user-feedback collection without claiming completed results.
 
-- 连续模式遵循设置的批量上限，取消 25% 强制暂停和反馈确认按钮。
-- 保留阶段性导出提交提醒，异常、待复核及人工停止仍有效。
-- 核验跨进度节点、语言方向切换和长期归档保留。
+## Pairwise 1.0.2
 
-## 成对评价 1.0.0
+- Require all output fields; normalize unambiguous wrappers and valid enum casing.
+- Separate bounded JSON/status/reason recovery from image-evidence rechecking, with at most two extra full-image format attempts.
+- Retain content-filter, uncertainty and image-state pauses; technical errors do not become ties.
+- Preserve the IndexedDB database/settings and test overwrite upgrades.
 
-- 新增离线 Userlog 原图/A/B 整图比较，翻译与渲染独立输出胜负与理由。
-- 逐题验证方向、资源加载、任务身份和原表保存；防止重复表和陈旧结果填入。
-- 新增长期 IndexedDB 归档、置信度复核与 HTML 报告。
+## Pairwise 1.0.1
 
-## 绝对打分 0.28.1（本地维护源码集中同步）
+- Respect the configured batch limit and remove the software-enforced 25% pause/acknowledgment.
+- Preserve submission reminders, error/review pauses and manual stop.
+- Check progress boundaries, direction changes and archive retention.
 
-- 同时核对真实进度与两侧图片/目标块稳定切换，避免只改数字却重复评分。
-- 0.27：区分取图、视觉失败、未翻译、无结果和 API 故障，加强当前项重新读取与恢复。
-- 0.26：可选评论清理，定位及评分缓存采用独立管线版本，减少无关 UI 更新造成的缓存失效。
-- 这些版本的维护说明保留于 [ABSOLUTE_HISTORY.md](docs/ABSOLUTE_HISTORY.md)；没有独立源码快照的版本不虚构独立补丁。
+## Pairwise 1.0.0
 
-## 绝对打分 0.25.0 及此前
+- Introduce whole-image source/A/B comparison, separate translation/rendering winners and reasons.
+- Verify per-item direction, image loading, identity and page save state; protect against duplicate sheets and stale writes.
+- Introduce durable IndexedDB archives and offline HTML reports.
 
-既有公开提交保留。覆盖 API 缓存、语言方向适配、原译图独立定位、高清裁剪、后台取图、持久归档、归档迁移和页面切换恢复等持续优化。历史磁盘自动备份方案已由后续实现替换。
+## Absolute 0.28.1 and earlier
 
+Check actual image/block transitions together with progress. Historical 0.26/0.27 notes describe cache separation, optional comment cleanup and failure/recovery distinctions. Existing 0.25.0 public commits remain preserved. See the [English history summary](docs/ABSOLUTE_HISTORY.en.md) and [original history](docs/ABSOLUTE_HISTORY.md).
 
-公开版成对模块使用通用评价模板，已移除客户内部规则；实际任务中的专用规则需另行获准配置。本机既有客户专用插件和归档未被修改。
+Public pairwise releases use a generic template. Private customer guidelines and installations are maintained separately.

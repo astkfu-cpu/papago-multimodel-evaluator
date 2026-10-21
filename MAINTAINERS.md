@@ -1,7 +1,11 @@
-# 维护者
+# Maintainer
 
-核心维护者：[astkfu-cpu](https://github.com/astkfu-cpu)
+[中文](MAINTAINERS.zh-CN.md)
 
-负责两个任务阶段的需求对接、页面和规则适配、浏览器扩展开发、接口集成、缺陷排查、版本优化、归档维护及译员使用支持。维护者免费提供插件，使用者自行承担模型 API 费用。
+**Core maintainer: [astkfu-cpu](https://github.com/astkfu-cpu).**
 
-实际应用涉及在线绝对打分和离线成对评价两轮任务，使用情况见 [实践证据](docs/USAGE_EVIDENCE.md)。公开提交记录源码变更；本地历史说明记录未独立发布的维护过程，两者不混同。
+Responsibilities cover requirements for both task rounds, browser-page and workflow adaptation, extension development, API integration, issue reproduction, regression tests, release maintenance, archive protection and translator support. Development uses Codex assistance; the maintainer owns requirements, decisions and validation.
+
+The extensions are provided free of charge; users supply API credentials and pay their own model charges. Actual work covers online absolute scoring and offline pairwise evaluation. See [usage evidence](docs/USAGE_EVIDENCE.md).
+
+Public commits record published changes. The changelog separately identifies imported local versions and historical notes; it does not imply earlier public development dates or additional contributors.

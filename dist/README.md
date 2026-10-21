@@ -1,13 +1,17 @@
-# 可下载版本
+# Downloadable releases
 
-发布日期：2026-10-21。源码免费，真实模型 API 由使用者自行付费。
+[中文](README.zh-CN.md)
 
-| 模块 | 当前版本 | 下载 |
+Published 21 October 2026. Plugin code is free; real model calls are billed to each user's API account.
+
+| Module | Version | Package |
 | --- | --- | --- |
-| 在线绝对打分 | 0.28.1 | [ZIP](papago-absolute-evaluator-0.28.1.zip) |
-| 离线成对比较（公开模板） | 1.1.0-public.1 | [ZIP](papago-pairwise-evaluator-1.1.0.zip) |
-| 自制独立演示，无需 API | 1.0.0 | [ZIP](papago-public-demo-1.0.0.zip) |
+| Absolute evaluator | 0.28.1 | [ZIP](papago-absolute-evaluator-0.28.1.zip) |
+| Pairwise evaluator, public template | 1.1.0-public.1 | [ZIP](papago-pairwise-evaluator-1.1.0.zip) |
+| Self-authored no-key demo | 1.0.0 | [ZIP](papago-public-demo-1.0.0.zip) |
 
-[正式 Releases](https://github.com/astkfu-cpu/papago-multimodel-evaluator/releases) 附版本说明和校验值；[releases.json](releases.json) 包含 ZIP 与源码 SHA-256。旧公开成对 [1.0.2](papago-pairwise-evaluator-1.0.2.zip) 保留原文件和散列。
+[GitHub Releases](https://github.com/astkfu-cpu/papago-multimodel-evaluator/releases) include version notes and SHA-256 manifests. [releases.json](releases.json) records package and source-file hashes. The archived [pairwise 1.0.2 ZIP](papago-pairwise-evaluator-1.0.2.zip) retains its original bytes/hash.
 
-扩展完整解压后加载含 manifest.json 的文件夹；更新前备份，覆盖原扩展目录并重新加载，不要卸载或换目录。演示包直接打开 index.html。见 [安装说明](../docs/INSTALLATION.md)、[备份恢复](../docs/ARCHIVE_BACKUP.md)。所有包不含真实 Key、客户原始工作包或私有归档。
+Unzip an extension and load the folder containing manifest.json. Back up before overwriting the same installed directory and reloading. Open the demo's index.html directly. See [installation](../docs/INSTALLATION.md), [backup/restore](../docs/ARCHIVE_BACKUP.md) and [English demo instructions](../demo/README.en.md).
+
+Packages exclude real API keys, private customer task packages and working archives. Repository English documentation is updated separately; existing release ZIPs retain their original documentation and checksums.

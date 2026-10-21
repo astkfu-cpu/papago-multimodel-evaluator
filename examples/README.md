@@ -1,10 +1,11 @@
-# 公开样例说明
+# Public examples and data notice
 
-本目录包含维护者选择并匿名化的实际任务图片、模型评价摘录、离线归档片段及汇总使用统计。原始文件保持不变；公开副本不含真实评价员 ID、客户任务 ID、本机路径或 API 请求追踪号。
+[中文](README.zh-CN.md)
 
-`pairwise/evaluation-result.json` 使用独立的公开示例格式，不是修改或重新生成的客户正式交付 JSON。图片保留原始完整内容；模型判断与理由保留原归档文字，不能作为人工金标准。`archive-sample.html` 可下载后离线查看图片与理由。GitHub 文件页面展示的是 HTML 源码。
+This directory contains separately selected, anonymized actual-task images, a stored model result, an offline archive excerpt and aggregate usage statistics. Private originals remain unchanged. Public copies omit original evaluator/customer task IDs, device metadata, local paths, request trace IDs and private filename mappings.
 
-代码许可见仓库根目录 MIT LICENSE。示例中的第三方图片、商标和原始任务内容权利归原权利人；示例发布仅用于展示工具功能与使用过程，代码的 MIT 许可不授予整包客户数据的再分发或训练使用权。
+`pairwise/evaluation-result.json` uses a standalone example schema; it is not an edited or regenerated official customer result. Original model decisions and rationales are retained. They may be wrong and are not a human gold standard. [English commentary](pairwise/REVIEW.en.md) accompanies the unchanged record. Download the HTML excerpt and images to read it offline; GitHub's blob page displays HTML source.
 
+Names in source records are translators' working aliases, not legal names. Public examples use additional anonymous identifiers without personal mappings.
 
-原始记录中的名字和账号是译员用于工作的称呼，不是真实姓名。公开样例进一步使用匿名代号，不公开工作称呼与具体个人、账号和任务记录的对应关系。
+Code is MIT licensed. Rights in third-party images/brands/task contents remain with their respective owners. Publishing this selected example illustrates the tool; the code license does not grant redistribution/training rights to complete customer datasets. The separate `demo/` images/page are self-authored under MIT.

@@ -1,13 +1,14 @@
-# 安全说明
+# Security
 
-## 报告安全问题
+[中文](SECURITY.zh-CN.md)
 
-请不要在公开 Issue 中粘贴 API Key、真实任务截图、账号名称或浏览器归档。发现安全问题时，请优先使用 GitHub 仓库的 **Security → Report a vulnerability** 私下报告，并说明复现步骤、受影响版本和预期影响。
+## Report responsibly
 
-## 密钥与数据
+Use the repository's **Security → Report a vulnerability** option when available for private security reporting. Describe reproduction steps, affected versions and impact. Never post API credentials or private task/archive contents in public issues.
 
-- API Key 只应填写在扩展侧栏中，不要写入源码、Issue、日志或截图。
-- 扩展会把送评图片发送给用户选择的 DeepSeek 或阿里云百炼接口。
-- 浏览器详细归档位于当前 Edge/Chrome 用户配置的 IndexedDB；导出的 JSON/HTML 可能含真实任务文本，请自行妥善保管。
-- 提交代码和测试样例时，只能使用虚构或已脱敏的数据。
+## Credentials and local records
 
+- Enter API keys in the extension side panel, not source code, logs, screenshots or issues.
+- Real image analysis sends image content to the user's configured model provider.
+- Detailed records live in the current browser profile. JSON/HTML working exports may contain task text and work identifiers; store them privately.
+- Only synthetic, self-authored or separately approved anonymized data belongs in public regression fixtures.

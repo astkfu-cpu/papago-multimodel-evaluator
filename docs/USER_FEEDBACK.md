@@ -1,13 +1,15 @@
-# 真实用户反馈
+# Real user feedback
 
-当前仓库提供维护者说明和归档汇总，尚未公开经用户确认的独立访谈或体验报告。本页为收集流程，不将模板当作已经收到的反馈。
+[中文](USER_FEEDBACK.zh-CN.md)
 
-邀请实际使用者根据安装说明独立完成一次获准任务，再记录：
+The repository currently publishes maintainer-reported use and archive aggregates. Independent interviews or user-confirmed public experience reports have not yet been published. This page is a collection process, not a testimonial.
 
-- 扩展版本、浏览器版本、语言方向和实际使用到的功能。
-- 安装卡在哪一步，能否独立完成分析、复核、填入和导出。
-- 一条具体问题：触发步骤、预期行为、实际行为及匿名截图。
-- 是否减少切页、复制粘贴或漏填；未计时就不要填写节省时间比例。
-- 是否愿意继续使用，以及是否同意匿名公开这次反馈。
+Invite actual users to follow the installation guide and complete an authorized task, then record:
 
-可使用 GitHub Issue 中的问题或功能模板，不要求公开真实姓名、工作账号、Key 或客户任务内容。经同意后，可在原反馈中链接对应修复提交和回归结果，保留真实“反馈 → 修复 → 验证”过程。不代替用户编写好评，不虚构其他贡献者。
+- Extension/browser version, language direction and features actually used.
+- Installation obstacles and whether analysis, review, filling and export could be completed independently.
+- One reproducible problem, expected/actual behavior and an anonymized screenshot.
+- Whether page switching, copying or missed entries decreased; give a time-saving figure only if measured.
+- Willingness to continue using the tool and consent to anonymous publication.
+
+Use the GitHub bug/feature templates. Real names, work accounts, keys and customer task contents are not required. With consent, link actual reports to fixing commits and regression results. Preserve a genuine feedback → fix → verification trail; do not write invented testimonials or contributors.

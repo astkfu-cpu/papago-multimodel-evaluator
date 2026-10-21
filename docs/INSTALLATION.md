@@ -1,38 +1,42 @@
-# 安装、首次使用与备份
+# Installation, first use and updates
 
-## 选择与下载
+[中文](INSTALLATION.zh-CN.md) · [UI glossary](UI_GUIDE.md)
 
-- 在线 Papago Pro 打分：下载 [绝对打分 0.28.1](../dist/papago-absolute-evaluator-0.28.1.zip)。
-- 本地离线 A/B 比较：下载 [成对评价 1.1.0](../dist/papago-pairwise-evaluator-1.1.0.zip)。
+## Download and load
 
-完整解压 ZIP，浏览器加载包含 `manifest.json` 的文件夹。若克隆整个仓库，在线插件加载根目录，成对插件加载 `pairwise`，不要同时将根目录误当作离线插件。
+| Use case | Package | Directory to load |
+| --- | --- | --- |
+| Online absolute scoring | [0.28.1 ZIP](../dist/papago-absolute-evaluator-0.28.1.zip) | Extracted folder containing manifest.json |
+| Offline whole-image comparison | [1.1.0 ZIP](../dist/papago-pairwise-evaluator-1.1.0.zip) | Extracted folder containing manifest.json |
+| No-key demonstration | [Public demo ZIP](../dist/papago-public-demo-1.0.0.zip) | Open index.html directly |
 
-## 安装与配置
+When cloning the entire repository, load the root for absolute scoring, or `pairwise/` for comparison. These are separate extensions.
 
-1. Edge 打开 `edge://extensions/`，Chrome 打开 `chrome://extensions/`。
-2. 开启“开发人员模式”，点击“加载解压缩的扩展”，选择对应文件夹。
-3. 成对插件点击“详细信息”，开启“允许访问文件 URL/网址”。
-4. 在线插件打开获准访问的 Papago Pro 评价页；成对插件先完整解压自己的任务包，再用普通浏览器窗口打开 `index.html`，保持任务方预选语言方向和评价员 ID。
-5. 点击扩展图标打开侧栏，输入自己的 API Key 和官方接口。插件免费，调用费用由自己的 API 账号承担。
-6. 先“测试接口”，再“分析当前张/只评当前张”，核对完整内容、两项建议和理由，最后选择是否填入或连续评价。
+1. Open `edge://extensions/` or `chrome://extensions/` in a normal browser profile.
+2. Enable Developer mode, select **Load unpacked**, and select the corresponding module directory.
+3. For the pairwise extension, open its Details and enable **Allow access to file URLs**.
+4. Open an authorized task: the supported online page for absolute scoring, or the fully extracted offline package's index.html for pairwise comparison. Preserve the assigned evaluator ID and language directions. Keep one offline task page open.
+5. Open the extension side panel and configure your own model API key and supported official endpoint. The plugin is free; API usage is charged to your account.
+6. Test connectivity, analyze one item, check complete image evidence and both reasons, then choose whether to fill or start an optional batch.
 
-## 离线任务的保存与恢复
+## Separate official results from plugin archives
 
-- 原表自动保存已选答案。每天结束或提交节点点击原表顶部“결과 내보내기”，保留下载 JSON 的原名和内容。
-- 右侧“导出当前任务报告”保存模型理由与复核信息，HTML 可离线查看；它不能代替客户要求的正式 JSON。
-- 原表“결과 가져오기”用于恢复原表结果，导入可能覆盖同题答案；不要随意导入别人的或过期的文件。
-- 模型内容审核或格式自动恢复后仍无效时，本题不自动填入；可在原表人工判断，再继续。
-- 原表页码与侧栏分析题号可能在手动切题后不同，请核对当前题号，不拿旧建议修改新题。
+The original task page saves judgments in the browser. Use its **결과 내보내기 / Export results** and **결과 가져오기 / Import results** for the official result format. Follow the task owner's submission requirements and preserve exported official filenames/content.
 
-## 更新
+The extension's HTML reports and versioned JSON backups contain model evidence and archive status. They do not replace official result files; restoring a plugin backup does not restore task-page progress. See [archive recovery](ARCHIVE_BACKUP.md).
 
-停止连续任务，先导出两种备份。将新版文件覆盖在当前安装目录，点击原扩展卡片的“重新加载”，刷新任务页。不要卸载扩展、删除浏览器配置、清除扩展数据或改用另一个目录安装，以保留同一扩展 ID 和归档。在线与离线插件各自更新。
+## Update safely
 
-## 常见问题
+Stop evaluation and export the appropriate backups. Overwrite files in the same extension directory, reload the existing extension and refresh the task page. Preserve its extension ID and browser profile; uninstalling or clearing extension data can remove local records. Update the two modules separately.
 
-“无法连接离线表”：检查加载目录、文件 URL 权限及是否刷新原表。“密钥错误/401”：检查账号、地域与模型权限。“DataInspectionFailed”：模型平台审核拦截，与格式校验不同；人工复核当前项。“返回理由缺失”：1.0.2 会携带完整图片有界重试，失败则暂停。
+The public pairwise module has a generic template; it does not supply private customer rules or automatically update a private client installation.
 
-需要帮助时按 [反馈入口](https://github.com/astkfu-cpu/papago-multimodel-evaluator/issues/new/choose) 提交版本、复现步骤和脱敏错误信息。
+## Troubleshooting
 
+- Cannot connect to the offline sheet: verify the loaded directory, file-URL permission and refreshed page.
+- HTTP 401: check the provider key, region and model access.
+- DataInspectionFailed/content filtering: a provider response restriction; inspect the item manually. It is not a JSON-format error.
+- Missing output fields: bounded full-image format recovery may run; persistent failure pauses without filling.
+- Changed item/direction/images: old mismatched advice is hidden and filling disabled. Reanalyze the current item.
 
-公开版成对模块使用通用评价模板，已移除客户内部规则；实际任务中的专用规则需另行获准配置。本机既有客户专用插件和归档未被修改。
+Report extension/browser versions, steps and redacted errors through [Issues](https://github.com/astkfu-cpu/papago-multimodel-evaluator/issues/new/choose).

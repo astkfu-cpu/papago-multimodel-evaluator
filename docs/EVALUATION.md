@@ -1,15 +1,17 @@
-# 人工对照评测计划与当前证据边界
+# Human comparison plan and evidence limits
 
-当前没有完成独立人工对照评测，不发布准确率、节省时间比例或已校准置信度。界面的“模型自评置信度”是模型返回的数值；0.85 只是自动流程门槛，不意味着 85% 正确。
+[中文](EVALUATION.zh-CN.md)
 
-`demo/` 包含两个自制方向案例并重复为八道流程题。参考判断由作者预先设计，用于软件回归；它们不是多个译员的独立判断，也不能计算有代表性的准确率。
+An independent human comparison benchmark has not yet been completed. No accuracy, measured time saving or calibrated confidence is reported. The UI's model self-reported confidence is returned by the model; the default 0.85 automation threshold does not imply 85% correctness.
 
-可执行的小规模对照流程：
+The demo repeats two self-authored direction-specific cases as eight workflow items. Reference decisions are designed by the author for software regression, not independently collected human judgments or eight independent benchmark cases.
 
-1. 选择获准公开或自行制作的完整三图，覆盖小字、数字、漏译、重叠、裁剪和真正平局。先完成少量有代表性的独立案例，再逐步扩大。
-2. 具备对应双语能力的复核者先独立判断翻译和渲染，记录具体证据，不先看模型输出。意见不一致时保留分歧并复核，不强行凑一致。
-3. 模型按同一规则评价，保留模型、规则和图像版本。交换 A/B 顺序重评，同一案例交换前后须归一化标签，不能重复计作两个独立样本。
-4. 按两个维度分别统计与人工一致率、无法判断比例、A/B 交换一致性；记录样本数、失败及重试。人评有分歧的案例单列。
-5. 只有样本足够时才检查不同自评置信度区间的实测一致率，再讨论阈值。效率比较另行记录同一组任务的操作时间，不从归档条数推算节省时长。
+## Proposed small-scale study
 
-建议记录字段：案例 ID、图片散列、语言方向、A/B 顺序、人评两项及理由、模型两项及理由、自评置信度、是否重试、复核结论、操作时间。先保护身份和数据权限，再公开经同意的记录。
+1. Select separately approved or self-authored complete source/A/B sets covering small text, numbers, omissions, overlap, clipping and actual ties. Start with a few representative independent cases and expand.
+2. Qualified bilingual reviewers judge translation and rendering separately before seeing model output. Record evidence and disagreements; retain unresolved cases.
+3. Record model/rule/image versions. Repeat with A/B swapped, normalize labels, and treat both orders as one underlying case.
+4. Report per-dimension agreement, unresolved rates and swap consistency, with sample counts, failures and retries. Separate human-disagreement cases.
+5. Only calibrate confidence thresholds when sample coverage supports it. Measure workflow time separately on the same task group; archive volume cannot establish time saved.
+
+Suggested fields: case ID, image hashes, direction/order, human decisions/reasons, model decisions/reasons, self-reported confidence, retries, adjudication and elapsed time. Obtain publication consent and protect identities and task rights.

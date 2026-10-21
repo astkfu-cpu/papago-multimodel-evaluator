@@ -1,21 +1,23 @@
-# 插件归档备份与恢复
+# Plugin archive backup and restore
 
-本功能只处理 `pairwise/` 扩展的分析依据归档，不处理客户正式结果。恢复插件归档不会改变原表完成进度，不会恢复 API Key 或其他设置，也不会把“已填入”标记重新写入原表。
+[中文](ARCHIVE_BACKUP.zh-CN.md) · [UI glossary](UI_GUIDE.md)
 
-## 导出
+This feature restores the pairwise extension's analysis archive. Official task-page progress and API settings are separate. Restoring an archive does not write judgments back into the task page.
 
-停止评价，展开“长期离线记录 → 筛选与分批导出 / 恢复”。选择全部记录或当前任务与账号，按需填写北京时间的创建日期范围。选择 JSON 备份或 HTML 阅读报告。
+## Export all required batches
 
-点击“导出下一批”，每批最多 500 条，按记录 ID 顺序。提示仍有记录时继续点击，直到显示该范围导出完成；保存每批文件。更换范围、日期或格式会从第一批开始，也可手动重置。导出期间保持归档不变；新写入记录可能落在已经导出的游标之前，需要重新导出该范围。
+Stop evaluation. Expand **长期离线记录 → 筛选与分批导出 / 恢复** (Archive → Filter/export/restore). Choose all records or the current task/account, and optionally a creation-date range in Beijing time. Select JSON backup or HTML report.
 
-快捷报告按钮仅导出所选范围的前 500 条；完整备份请使用分批导出。HTML 用于阅读；JSON 的 `papago_pairwise_assistant_backup/v1` 才支持恢复。该 schema 与客户正式结果完全不同。
+Click **导出下一批** (Export next batch). Each file contains at most 500 records in record-ID order. Continue until the UI says the selected range is complete; keep every file. Changing the scope, dates or format resets the cursor; a reset button is also available. Keep the archive stable during export: newly inserted IDs can fall before an existing cursor, requiring a fresh export.
 
-## 恢复
+Shortcut report buttons export only the first 500 selected records. For a full backup, use the batch controls. HTML is for reading; only JSON with schema `papago_pairwise_assistant_backup/v1` supports restoration. This schema differs from official customer results.
 
-先停止评价。选择一个插件 JSON 备份，界面预览总数、可补入数、已有数及内容冲突数，再确认补入。逐个恢复所有批次。
+## Preview and restore
 
-恢复是事务性补入：按归档 ID 检查重复，已有记录一律保留，不覆盖、不删除；相同 ID 但内容不同的记录只计入冲突并跳过。重复导入同一批不会重复增加记录。格式不合法、文件内部 ID 重复、未知版本或客户正式结果会被拒绝；写入失败时事务回滚。
+Stop evaluation, select one plugin backup JSON, inspect the total/new/existing/conflicting counts, then explicitly confirm. Repeat for each batch.
 
-备份保留原图/A/B的本地链接、任务和工作账号、两项建议、理由、时间及原归档保存标记；不含图片字节、API 设置、密钥或模型私有推理。任务包迁移后旧图片链接可能失效，但文本依据仍可读。备份含工作数据，仅在本机妥善保管，公开前另行匿名化。
+Restoration is transactional and additive. Existing record IDs are always preserved. Same-ID content conflicts are counted and skipped. Reimporting the same batch adds no duplicates. Invalid schemas/records, duplicate IDs inside one file and official-result JSON are rejected before restoration; a write failure aborts the transaction.
 
-旧数据库名和版本保持不变。升级请覆盖同一扩展目录并重新加载，不要卸载。JSON 备份能力不等于把私有客户版自动升级成公开模板版；客户专用版本继续单独维护。
+Backups retain local image links, task/work-account identifiers, decisions, reasons, timestamps and archive save flags. They omit image bytes, API configuration/keys and private model reasoning. Image links may break when the original task folder moves; the text evidence remains readable. Keep working backups private and anonymize any separately approved public copy.
+
+The database name/version remains unchanged. Preserve the same extension directory/ID and browser profile during upgrades. Public templates and customer-specific installations are maintained separately.

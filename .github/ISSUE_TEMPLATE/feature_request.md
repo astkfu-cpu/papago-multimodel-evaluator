@@ -1,12 +1,12 @@
 ---
-name: 功能建议 / Feature request
-about: 描述实际使用中需要改进的工作流
+name: Feature request / 功能建议
+about: Describe a concrete workflow improvement
 ---
 
-使用哪个模块和版本？
+Module and extension/browser versions:
 
-当前遇到的具体问题：
+Current problem and reproduction context:
 
-期望的行为及原因：
+Proposed behavior and why it helps:
 
-请勿粘贴 API Key、客户账号或受限任务文件。
+Exclude API keys, customer accounts and restricted task files.
