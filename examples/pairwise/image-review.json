@@ -1,0 +1,8 @@
+{
+  "image": "images/source.jpg",
+  "sha256": "5c30edcafd92c1901537737d8d413d9c3b33fee80ad0eeae265c1131998748c5",
+  "review_method": "Visual inspection of the complete image by the assistant",
+  "content": "Retail shelf promotional label for vitamins, showing product names, price, purchase conditions and dates; no people, account names, contact details, addresses, credentials or customer communications visible.",
+  "metadata": "EXIF and comment metadata removed; decoded image pixels unchanged.",
+  "authorization": "Maintainer explicitly confirmed publication of this exact CVS/Centrum source/A/B sample set to astkfu-cpu/papago-multimodel-evaluator, conditional on hiding customer information. Public assets contain no customer project identity, account, work alias, task identifier, communication or local path; metadata was removed. Retail product labels are not customer task identifiers."
+}

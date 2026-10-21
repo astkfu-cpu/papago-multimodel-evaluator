@@ -8,3 +8,15 @@ test-results/
 .DS_Store
 Thumbs.db
 
+
+# Private runtime data and task packages
+tmp/
+outputs/
+node_modules/
+*.jsonl
+*.zip
+*profile*/
+.env*
+
+!dist/
+!dist/*.zip

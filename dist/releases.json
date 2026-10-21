@@ -1,0 +1,39 @@
+[
+  {
+    "module": "absolute",
+    "version": "0.28.1",
+    "published_on": "2026-10-21",
+    "filename": "papago-absolute-evaluator-0.28.1.zip",
+    "sha256": "b5c18787419438223f69f88e2b3a5f7198408567c72cd3d9c7013ffc6eee0a9c",
+    "source_files_sha256": {
+      "manifest.json": "2bbc92b99faa132f03db07ad8a08f1b16df26fe3dfdbf3a2c6eb35d1427e5f74",
+      "background.js": "61e1a01c22f831f90b775da447aa2a9d61229ef13ccab584cc73cefa32382fad",
+      "content.js": "fcfa9929e11bdbc3c6b1f3a12f1eb16ce5352634638ab2b48eb570ab05031592",
+      "highlight-detector.js": "4ebbcd1a888d5195312793d2185e413c95bfb7efbfb5b3b1b17af7daeb0d67a3",
+      "sidepanel.html": "653efc627affb2d6a1571327988897e99dffaf09399a38482723112e7445d497",
+      "sidepanel.css": "871b6329f2b58d25146c72e05dbcb62d1aefe201a226f5af40354a79db5e850d",
+      "sidepanel.js": "df1590b3ea289006f9a70b61761b671aaace5a4dcca368056cf832bfa9a29266",
+      "LICENSE": "47454d692a884efe0378b0b01c66e16313f9900f16b9e12313d5a4bac7f26197",
+      "PRIVACY.md": "f57a08531c032a32e8730ee02900119ef74b79a3a25e80accd5df1dea8d32d11"
+    }
+  },
+  {
+    "module": "pairwise",
+    "version": "1.0.2",
+    "published_on": "2026-10-21",
+    "filename": "papago-pairwise-evaluator-1.0.2.zip",
+    "sha256": "4a2e7f5722e16c4ed3e338cadab18a99ea17a3d85b676cf05058af1144e33acf",
+    "source_files_sha256": {
+      "manifest.json": "2ce4d2d92ff470b0be2246738ade524a11a42b98ae7b745bf214c92c3f7bc48f",
+      "background.js": "d955a81a13c5f7799e8b44e12d57a5ce5d6c6fea35df9ac38758e16e33d7150c",
+      "content.js": "c5c66cc0468c55e7e5ca6fea39ea05587e064895accbd78955d7feea58d865b3",
+      "shared.js": "77113a41cedc3094488ca9dc1d00aa842393dbd4e5fa7804d2643f9114ecff78",
+      "archive.js": "0e54857c24fdca142545b58bd479d28b58d943b009b812e7a1aeb2b121b1e2f7",
+      "sidepanel.html": "880b92f55b4798a8c59769e4f316543b1db3f2bb24a256ebca7f9bf36e624afb",
+      "sidepanel.css": "2062cf725c87dc1db4e5e42a6cd2c71548d0a0fa042fc5b5246e9b300b742628",
+      "sidepanel.js": "b583f5083269a30580c2e7345ae8eaddc9f42740708168c84aa5d94020b5153f",
+      "README.md": "72b622f347659d92713f0ed8f98813a48cf528bfba38a1682b29906ffb8ec006",
+      "RULES.md": "842fe66b17f29cf0cd4a7bb6bfa5748f32b90d9c846544209eb09f5c496070eb"
+    }
+  }
+]

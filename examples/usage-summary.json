@@ -1,0 +1,64 @@
+{
+  "schema": "papago-toolkit-usage-summary/v1",
+  "snapshot_date": "2026-10-21",
+  "scope": "maintainer-provided pairwise HTML exports only",
+  "archive_html_files": 47,
+  "raw_analysis_records": 37497,
+  "unique_evaluator_labels": 47,
+  "unique_tasks": 1,
+  "deduplicated_item_records": 37471,
+  "deduplicated_applied_records": 37431,
+  "deduplication_key": [
+    "evaluator_label",
+    "sheet_id",
+    "pair_id"
+  ],
+  "duplicate_resolution": "latest updated timestamp",
+  "directions": {
+    "EN_JA": {
+      "item_records": 7531,
+      "applied_records": 7495
+    },
+    "EN_ZH-CN": {
+      "item_records": 5544,
+      "applied_records": 5542
+    },
+    "JA_EN": {
+      "item_records": 7600,
+      "applied_records": 7600
+    },
+    "JA_ZH-CN": {
+      "item_records": 5596,
+      "applied_records": 5594
+    },
+    "ZH-CN_EN": {
+      "item_records": 5600,
+      "applied_records": 5600
+    },
+    "ZH-CN_JA": {
+      "item_records": 5600,
+      "applied_records": 5600
+    }
+  },
+  "limitations": [
+    "Analysis/applied archive flags do not prove client acceptance or independent human review.",
+    "Counts exclude any source archives not supplied for this snapshot.",
+    "Two task rounds and multiple translator users are maintainer-reported practice, not telemetry."
+  ],
+  "maintainer_confirmation": "The evaluator accounts were used by multiple translators in real tasks; the extension was provided free and users paid their own API costs.",
+  "language_groups": [
+    [
+      "EN",
+      "JA"
+    ],
+    [
+      "EN",
+      "ZH-CN"
+    ],
+    [
+      "JA",
+      "ZH-CN"
+    ]
+  ],
+  "privacy_notice": "Names in the source records are translators working aliases, not legal names. Public examples are additionally anonymized; individual mappings are not published."
+}

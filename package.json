@@ -1,18 +1,22 @@
 {
   "name": "papago-multimodel-evaluator",
   "version": "0.28.1",
-  "description": "Edge/Chrome extension for reviewing Papago Pro image-translation quality with DeepSeek or Qwen.",
+  "description": "Free, independently maintained Papago evaluation toolkit: absolute scoring and whole-image pairwise review.",
   "private": false,
   "scripts": {
-    "test": "npm run test:unit",
+    "test": "npm run test:absolute && npm run test:pairwise",
     "test:unit": "node test-static.mjs && node test-api-cache.mjs && node test-highlight-detector.mjs && node test-target-pipeline.mjs",
     "test:e2e": "node test-archive.cjs && node test-browser-crop.cjs",
-    "test:all": "npm run test:unit && npm run test:e2e"
+    "test:all": "npm run test:unit && npm run test:e2e",
+    "test:absolute": "node test-static.mjs && node test-api-cache.mjs && node test-highlight-detector.mjs && node test-target-pipeline.mjs",
+    "test:pairwise": "node --test pairwise/test-shared.mjs"
   },
   "devDependencies": {
     "playwright": "^1.62.1"
   },
   "engines": {
     "node": ">=20"
-  }
+  },
+  "author": "astkfu-cpu",
+  "license": "MIT"
 }

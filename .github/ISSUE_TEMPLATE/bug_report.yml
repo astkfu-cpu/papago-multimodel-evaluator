@@ -1,0 +1,29 @@
+name: 缺陷反馈 / Bug report
+description: 提供脱敏复现步骤，帮助维护者修复
+body:
+  - type: dropdown
+    id: module
+    attributes:
+      label: 模块 / Module
+      options:
+        - 在线绝对打分 / Absolute
+        - 离线成对评价 / Pairwise
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 插件与浏览器版本 / Versions
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤、预期与实际表现 / Steps, expected and actual behavior
+      description: 不要上传 API Key、真实账号或完整客户结果文件。
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: 脱敏错误信息 / Redacted error details
