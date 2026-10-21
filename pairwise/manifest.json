@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "Papago 成对评价助手 · 千问",
+  "version": "1.0.0",
+  "description": "读取离线成对评估表的完整原图与 A/B 图，分别比较翻译和渲染，支持单张确认与可选连续评价。",
+  "minimum_chrome_version": "120",
+  "permissions": [
+    "storage",
+    "unlimitedStorage",
+    "tabs",
+    "sidePanel",
+    "alarms"
+  ],
+  "host_permissions": [
+    "file:///*",
+    "https://dashscope.aliyuncs.com/*",
+    "https://dashscope-intl.aliyuncs.com/*",
+    "https://*.maas.aliyuncs.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "打开成对评价助手"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "file:///*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "version_name": "1.0.0-public.1"
+}

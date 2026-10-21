@@ -1,0 +1,15 @@
+{
+  "name": "papago-pairwise-evaluator",
+  "version": "1.0.0",
+  "private": false,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test-shared.mjs",
+    "test:e2e": "node test-browser.cjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "author": "astkfu-cpu"
+}
