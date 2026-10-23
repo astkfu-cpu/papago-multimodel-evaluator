@@ -21,6 +21,18 @@ npm run test:upgrade
 
 `test:upgrade` opens actual archived public 1.0.2 code, creates records/settings, overwrites the same extension path with current code, and checks exact record/settings preservation and the same extension ID. It defaults to the immutable dist/1.0.2 ZIP. Set `PYTHON_EXECUTABLE` when Python is not available under the default command.
 
+### Check Python on Windows
+
+Run `python --version` first. A missing-Python message or Microsoft Store prompt means that command alias is not a working interpreter. If `py -3 --version` works, resolve the interpreter through the launcher in PowerShell:
+
+```powershell
+$env:PYTHON_EXECUTABLE = (py -3 -c "import sys; print(sys.executable)").Trim()
+& $env:PYTHON_EXECUTABLE --version
+npm run test:upgrade
+```
+
+If neither command works, install Python or set `PYTHON_EXECUTABLE` to the full path of an existing `python.exe`. The variable accepts an executable path, not a command with arguments such as `py -3`. This environment setting applies only to the current PowerShell session and its child processes; it does not update any installed extension.
+
 ## Verified release checks
 
 The 1.1.0 Edge regression passed whole native image-byte checks, independent reasons, stale-advice hiding, cross-item write rejection, direction switching, bounded format recovery, throttling, stop/filter pauses and duplicate-page protection. Archive tests restored 514 records across 500-record cursor batches, preserved duplicate/conflicting existing rows, kept settings/keys isolated, and survived a browser restart. The file-selection/preview/confirm/download UI is also exercised.
