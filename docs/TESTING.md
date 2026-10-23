@@ -41,6 +41,10 @@ GitHub Actions [run 39601728804](https://github.com/astkfu-cpu/papago-multimodel
 
 These tests verify application control flow, image reading and data protection. Mocked API responses do not measure live-provider availability, model accuracy, human agreement or speedup.
 
+## CI installation and time budgets
+
+The browser job reports Linux system-dependency installation and Chromium download as separate steps. This makes it easier to locate slow installation before tests begin; it does not make package mirrors faster. System dependencies have a 15-minute limit and Chromium download a 5-minute limit; the browser job has a 30-minute overall limit and the unit job a 10-minute limit. A timeout is an incomplete check, not a passing test or evidence of an extension defect. Review the failed step's logs before retrying. Test commands, mocked fixtures and archive-preserving upgrade checks remain the same.
+
 ## Optional separately authorized fixtures
 
 Set `PAPAGO_PAIRWISE_PACKAGE` to a separately authorized local test package to replace the public fixture. `PAPAGO_PAIRWISE_PREVIOUS_ZIP` selects an archived upgrade package. Private customer fixtures/rubrics are excluded from the repository. Absolute browser tests are available through `npm run test:e2e`.
