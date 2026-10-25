@@ -12,6 +12,7 @@
 npm install
 npm test
 npm run verify:releases
+npm run verify:docs
 npx playwright install chromium
 npm run test:demo
 npm run test:upgrade
@@ -42,6 +43,10 @@ npm run test:upgrade
 GitHub Actions [运行 39601728804](https://github.com/astkfu-cpu/papago-multimodel-evaluator/actions/runs/39601728804) 的单元和 Linux 浏览器作业通过，包含公开演示及覆盖升级检查。CI 保存隔离测试截图和摘要；新的文档提交也会重新运行 CI。
 
 这些测试验证流程、取图和数据保护。模拟 API 结果不能证明真实服务可用率、模型准确率、人工一致率或效率提升。
+
+## 离线文档链接检查
+
+`npm run verify:docs` 先运行合成回归，再离线检查 Markdown 中内联的本地链接与图片，CI 的 unit 作业会执行。目标缺失、URL 编码错误或路径越出仓库会使检查失败，并报告文件与行号；代码围栏、行内代码示例和生成/依赖目录不参与检查。外部 URL、片段锚点、引用式链接和 HTML 链接不在检查范围内，通过不代表所有文档链接都已验证。
 
 ## CI 安装阶段与等待上限
 

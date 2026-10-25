@@ -10,6 +10,7 @@ Requirements: Node.js 20+, npm; browser regressions also need Playwright and a s
 npm install
 npm test
 npm run verify:releases
+npm run verify:docs
 npx playwright install chromium
 npm run test:demo
 npm run test:upgrade
@@ -40,6 +41,10 @@ The 1.1.0 Edge regression passed whole native image-byte checks, independent rea
 GitHub Actions [run 39601728804](https://github.com/astkfu-cpu/papago-multimodel-evaluator/actions/runs/39601728804) passed unit and Linux browser jobs, including the public demo and upgrade checks. CI publishes isolated screenshots and summary artifacts. New documentation commits run CI again.
 
 These tests verify application control flow, image reading and data protection. Mocked API responses do not measure live-provider availability, model accuracy, human agreement or speedup.
+
+## Offline documentation links
+
+`npm run verify:docs` runs synthetic checker regressions and validates inline local Markdown links and images without network access. CI runs it in the unit job. Missing destinations, malformed URL encoding and paths outside the repository fail the check; diagnostics identify the file and line. Fenced/inline code examples and generated/dependency folders are excluded. External URLs, fragment anchors, reference-style links and HTML links are not validated, so passing this check does not establish that every documentation link works.
 
 ## CI installation and time budgets
 
