@@ -42,6 +42,10 @@ GitHub Actions [run 39601728804](https://github.com/astkfu-cpu/papago-multimodel
 
 These tests verify application control flow, image reading and data protection. Mocked API responses do not measure live-provider availability, model accuracy, human agreement or speedup.
 
+## Release verification regressions
+
+`npm run verify:releases` first runs five isolated synthetic regressions, then checks the actual repository packages and recorded current source hashes. The regressions exercise the real verifier in a temporary fixture: valid current modules plus a historical package pass; a one-byte package change, changed/missing current source, or replaced historical package fails. Historical source may differ from today's source, but its package digest must still match. Fixtures contain synthetic bytes and never modify the repository's published ZIPs. These checks verify integrity enforcement, not ZIP extraction safety or model accuracy.
+
 ## Offline documentation links
 
 `npm run verify:docs` runs synthetic checker regressions and validates inline local Markdown links and images without network access. CI runs it in the unit job. Missing destinations, malformed URL encoding and paths outside the repository fail the check; diagnostics identify the file and line. Fenced/inline code examples and generated/dependency folders are excluded. External URLs, fragment anchors, reference-style links and HTML links are not validated, so passing this check does not establish that every documentation link works.
