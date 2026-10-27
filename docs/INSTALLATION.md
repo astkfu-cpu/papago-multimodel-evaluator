@@ -2,7 +2,7 @@
 
 [中文](INSTALLATION.zh-CN.md) · [UI glossary](UI_GUIDE.md)
 
-## Download and load
+## Download
 
 | Use case | Package | Directory to load |
 | --- | --- | --- |
@@ -11,6 +11,24 @@
 | No-key demonstration | [Public demo ZIP](../dist/papago-public-demo-1.0.0.zip) | Open index.html directly |
 
 When cloning the entire repository, load the root for absolute scoring, or `pairwise/` for comparison. These are separate extensions.
+
+### Verify a downloaded ZIP before extracting
+
+Download the module ZIP and the attached `releases.json` from the same [GitHub Release](https://github.com/astkfu-cpu/papago-multimodel-evaluator/releases). Put both files in one download folder. In PowerShell, open that folder and run the following example for the public pairwise package; change only `$zipPath` to check another listed package:
+
+```powershell
+$zipPath = '.\papago-pairwise-evaluator-1.1.0.zip'
+$manifest = Get-Content -LiteralPath '.\releases.json' -Raw | ConvertFrom-Json
+$entry = @($manifest | Where-Object { $_.filename -eq (Split-Path -Leaf $zipPath) })
+if ($entry.Count -ne 1) { throw 'Expected exactly one matching package in releases.json.' }
+$actual = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
+if ($actual -ine $entry[0].sha256) { throw 'SHA-256 mismatch. Download the ZIP and manifest again before installing.' }
+'SHA-256 matches the release manifest.'
+```
+
+This reads the downloaded files without changing them or the installed extension. Continue only after the match message. If the package is absent from the manifest, the files are missing, or the digest differs, stop and check the downloads. Matching hashes confirm that the ZIP matches the published manifest; they are not an independent security audit. To inspect the expected values, see the repository [release manifest](../dist/releases.json).
+
+### Load the extension
 
 1. Open `edge://extensions/` or `chrome://extensions/` in a normal browser profile.
 2. Enable Developer mode, select **Load unpacked**, and select the corresponding module directory.

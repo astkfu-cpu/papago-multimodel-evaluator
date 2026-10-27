@@ -1,11 +1,29 @@
 # 安装、首次使用与备份
 
+[English](INSTALLATION.md)
+
 ## 选择与下载
 
 - 在线 Papago Pro 打分：下载 [绝对打分 0.28.1](../dist/papago-absolute-evaluator-0.28.1.zip)。
 - 本地离线 A/B 比较：下载 [成对评价 1.1.0](../dist/papago-pairwise-evaluator-1.1.0.zip)。
 
 完整解压 ZIP，浏览器加载包含 `manifest.json` 的文件夹。若克隆整个仓库，在线插件加载根目录，成对插件加载 `pairwise`，不要同时将根目录误当作离线插件。
+
+## 解压前核对下载包
+
+从同一份 [GitHub Release](https://github.com/astkfu-cpu/papago-multimodel-evaluator/releases) 下载模块 ZIP 及附件 `releases.json`，放在同一个下载文件夹。在该文件夹打开 PowerShell，执行以下公开版成对安装包示例；检查其他清单内的包时只需修改 `$zipPath`：
+
+```powershell
+$zipPath = '.\papago-pairwise-evaluator-1.1.0.zip'
+$manifest = Get-Content -LiteralPath '.\releases.json' -Raw | ConvertFrom-Json
+$entry = @($manifest | Where-Object { $_.filename -eq (Split-Path -Leaf $zipPath) })
+if ($entry.Count -ne 1) { throw 'Expected exactly one matching package in releases.json.' }
+$actual = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
+if ($actual -ine $entry[0].sha256) { throw 'SHA-256 mismatch. Download the ZIP and manifest again before installing.' }
+'SHA-256 matches the release manifest.'
+```
+
+脚本只读取下载文件，不修改安装包或已安装扩展。出现匹配提示后再继续解压；若清单没有对应文件、文件缺失或哈希不一致，先停止安装并核对下载。哈希匹配说明 ZIP 与发布清单一致，不等于独立安全审计。预期值也可在仓库的[发布清单](../dist/releases.json)中查看。
 
 ## 安装与配置
 
