@@ -13,6 +13,8 @@
     "test:demo": "node pairwise/test-browser.cjs && node pairwise/test-archive-ui.cjs",
     "verify:releases": "node --test scripts/test-verify-releases.mjs && node scripts/verify-releases.mjs",
     "verify:docs": "node --test scripts/test-check-docs.mjs && node scripts/check-docs.mjs",
+    "verify:download": "node scripts/verify-download.mjs",
+    "test:download": "node --test scripts/test-verify-download.mjs",
     "test:upgrade": "node pairwise/test-upgrade.cjs"
   },
   "devDependencies": {

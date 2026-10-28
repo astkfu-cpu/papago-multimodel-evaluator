@@ -28,6 +28,10 @@ if ($actual -ine $entry[0].sha256) { throw 'SHA-256 mismatch. Download the ZIP a
 
 This reads the downloaded files without changing them or the installed extension. Continue only after the match message. If the package is absent from the manifest, the files are missing, or the digest differs, stop and check the downloads. Matching hashes confirm that the ZIP matches the published manifest; they are not an independent security audit. To inspect the expected values, see the repository [release manifest](../dist/releases.json).
 
+### Cross-platform alternative with Node.js
+
+With Node.js 20+ and a repository checkout, run `npm run verify:download -- "/path/to/package.zip"` from the repository root. The command reads `releases.json` beside the ZIP; to select a different manifest, append its path as a second argument. Quote paths containing spaces. It prints the verified filename and SHA-256, and exits with a nonzero status on missing files, invalid/ambiguous entries or mismatched bytes. It does not extract, install or change files. This is an alternative to the PowerShell example; the same manifest interpretation applies. Maintainers can run `npm run test:download` for synthetic regressions.
+
 ### Load the extension
 
 1. Open `edge://extensions/` or `chrome://extensions/` in a normal browser profile.

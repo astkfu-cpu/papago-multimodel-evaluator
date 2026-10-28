@@ -25,6 +25,10 @@ if ($actual -ine $entry[0].sha256) { throw 'SHA-256 mismatch. Download the ZIP a
 
 脚本只读取下载文件，不修改安装包或已安装扩展。出现匹配提示后再继续解压；若清单没有对应文件、文件缺失或哈希不一致，先停止安装并核对下载。哈希匹配说明 ZIP 与发布清单一致，不等于独立安全审计。预期值也可在仓库的[发布清单](../dist/releases.json)中查看。
 
+## Node.js 跨平台替代方式
+
+已有 Node.js 20+ 和仓库副本时，可在仓库根目录执行 `npm run verify:download -- "/path/to/package.zip"`。命令默认读取 ZIP 旁边的 `releases.json`；若清单在其他位置，在命令后追加清单路径作为第二个参数。包含空格的路径要加引号。成功时输出包名和 SHA-256；文件缺失、清单条目错误/重复或哈希不匹配时以非零状态退出，不解压、不安装、不改文件。这是上方 PowerShell 示例的替代方式，哈希含义相同。维护者可运行 `npm run test:download` 执行合成回归。
+
 ## 安装与配置
 
 1. Edge 打开 `edge://extensions/`，Chrome 打开 `chrome://extensions/`。

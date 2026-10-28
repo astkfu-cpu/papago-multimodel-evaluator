@@ -20,6 +20,7 @@ jobs:
       - run: npm test
       - run: npm run verify:releases
       - run: npm run verify:docs
+      - run: npm run test:download
   browser:
     runs-on: ubuntu-latest
     timeout-minutes: 30
