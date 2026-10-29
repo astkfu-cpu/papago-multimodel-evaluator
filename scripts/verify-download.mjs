@@ -7,7 +7,8 @@ import {fileURLToPath} from 'node:url';
 // Read downloaded bytes only; never extract, modify or install the package.
 export async function verifyDownload(zipPath, manifestPath = resolve(dirname(zipPath), 'releases.json')) {
   const filename = basename(zipPath);
-  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  const text = await readFile(manifestPath, 'utf8');
+  const manifest = JSON.parse(text.replace(/^\uFEFF/, ''));
   if (!Array.isArray(manifest)) throw new Error('Release manifest must be an array.');
   const matches = manifest.filter(entry => entry && entry.filename === filename);
   if (matches.length !== 1) throw new Error('Expected exactly one manifest entry for ' + filename);
@@ -22,8 +23,11 @@ export async function verifyDownload(zipPath, manifestPath = resolve(dirname(zip
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
-  if (args.length < 1 || args.length > 2) {
-    console.error('Usage: node scripts/verify-download.mjs ZIP [MANIFEST]\nMANIFEST defaults to releases.json beside ZIP.');
+  const usage = 'Usage: node scripts/verify-download.mjs ZIP [MANIFEST]\nMANIFEST defaults to releases.json beside ZIP.';
+  if (args.length === 1 && ['--help', '-h'].includes(args[0])) {
+    console.log(usage);
+  } else if (args.length < 1 || args.length > 2) {
+    console.error(usage);
     process.exitCode = 1;
   } else {
     try {

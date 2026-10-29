@@ -32,6 +32,8 @@ This reads the downloaded files without changing them or the installed extension
 
 With Node.js 20+ and a repository checkout, run `npm run verify:download -- "/path/to/package.zip"` from the repository root. The command reads `releases.json` beside the ZIP; to select a different manifest, append its path as a second argument. Quote paths containing spaces. It prints the verified filename and SHA-256, and exits with a nonzero status on missing files, invalid/ambiguous entries or mismatched bytes. It does not extract, install or change files. This is an alternative to the PowerShell example; the same manifest interpretation applies. Maintainers can run `npm run test:download` for synthetic regressions.
 
+Use `npm run verify:download -- --help` (or `-h`) to display usage without reading a download or manifest. UTF-8 manifests with a leading BOM are accepted; malformed JSON and mismatched hashes still fail, and the original files are not rewritten.
+
 ### Load the extension
 
 1. Open `edge://extensions/` or `chrome://extensions/` in a normal browser profile.

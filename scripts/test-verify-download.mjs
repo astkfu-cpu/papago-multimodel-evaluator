@@ -35,6 +35,15 @@ test('one-byte changes are rejected without rewriting the download', () => fixtu
   assert.deepEqual(readFileSync(zip), altered);
 }));
 
+test('UTF-8 BOM manifests verify without rewriting files or bypassing hash checks', () => fixture(async ({zip, manifest, entry, bytes}) => {
+  writeFileSync(manifest, '\uFEFF' + JSON.stringify([entry]));
+  const before = readFileSync(manifest);
+  assert.deepEqual(await verifyDownload(zip), entry);
+  assert.deepEqual(readFileSync(manifest), before);
+  const altered = Buffer.from(bytes); altered[0] ^= 1; writeFileSync(zip, altered);
+  await assert.rejects(verifyDownload(zip), /SHA-256 mismatch/);
+}));
+
 test('supports a separately named manifest and reports missing files', () => fixture(async ({root, zip, manifest}) => {
   const other = join(root, 'download-manifest.json'); writeFileSync(other, readFileSync(manifest));
   await verifyDownload(zip, other);
@@ -59,4 +68,16 @@ test('CLI handles paths with spaces and returns failure for corruption or missin
   writeFileSync(zip, Buffer.concat([bytes, Buffer.from('changed')]));
   const bad = invoke([zip]); assert.equal(bad.status, 1); assert.match(bad.stderr, /SHA-256 mismatch/);
   assert.equal(invoke([]).status, 1);
+}));
+
+test('CLI help exits successfully without needing a manifest or package argument', () => fixture(async ({root, manifest}) => {
+  rmSync(manifest);
+  const script = fileURLToPath(new URL('./verify-download.mjs', import.meta.url));
+  for (const flag of ['--help', '-h']) {
+    const result = spawnSync(process.execPath, [script, flag], {cwd: root, encoding: 'utf8'});
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /Usage:.*ZIP \[MANIFEST\]/);
+    assert.match(result.stdout, /releases.json beside ZIP/);
+    assert.equal(result.stderr, '');
+  }
 }));

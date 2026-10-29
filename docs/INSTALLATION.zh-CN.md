@@ -29,6 +29,8 @@ if ($actual -ine $entry[0].sha256) { throw 'SHA-256 mismatch. Download the ZIP a
 
 已有 Node.js 20+ 和仓库副本时，可在仓库根目录执行 `npm run verify:download -- "/path/to/package.zip"`。命令默认读取 ZIP 旁边的 `releases.json`；若清单在其他位置，在命令后追加清单路径作为第二个参数。包含空格的路径要加引号。成功时输出包名和 SHA-256；文件缺失、清单条目错误/重复或哈希不匹配时以非零状态退出，不解压、不安装、不改文件。这是上方 PowerShell 示例的替代方式，哈希含义相同。维护者可运行 `npm run test:download` 执行合成回归。
 
+可运行 `npm run verify:download -- --help`（或 `-h`）查看用法，不读取安装包或清单。支持开头带 BOM 文件头的 UTF-8 清单；错误 JSON 或哈希不一致仍会失败，不改写原文件。
+
 ## 安装与配置
 
 1. Edge 打开 `edge://extensions/`，Chrome 打开 `chrome://extensions/`。
