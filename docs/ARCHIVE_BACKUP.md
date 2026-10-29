@@ -21,3 +21,9 @@ Restoration is transactional and additive. Existing record IDs are always preser
 Backups retain local image links, task/work-account identifiers, decisions, reasons, timestamps and archive save flags. They omit image bytes, API configuration/keys and private model reasoning. Image links may break when the original task folder moves; the text evidence remains readable. Keep working backups private and anonymize any separately approved public copy.
 
 The database name/version remains unchanged. Preserve the same extension directory/ID and browser profile during upgrades. Public templates and customer-specific installations are maintained separately.
+
+## Inspect a backup offline before recovery
+
+With Node.js 20+ and a repository checkout, run `npm run inspect:backup -- "/path/to/plugin-backup.json"` from the repository root. Use only plugin backup JSON, never official task results. `--help` shows usage. The read-only command reuses the public backup validator and prints JSON counts: `records`, `applied`, `notApplied`, `needsReview`, `tasks` and `evaluators`. It does not print identifiers, reasons or image paths, write files, access a browser database or perform restoration. Invalid files produce a failing exit status without echoing input content.
+
+Counts describe this file only. `applied` is the stored plugin flag, not confirmed official task progress; `needsReview` is independent of that flag. Task/evaluator counts are distinct stored identifiers, not independently verified people. A valid file does not prove that every export batch exists, images are available, or its records will be new rather than conflicting in the browser. Keep every batch and still preview in the extension before confirming restoration. Maintainers can run `npm run test:backup-cli` for synthetic regressions.

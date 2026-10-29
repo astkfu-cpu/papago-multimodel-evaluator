@@ -21,6 +21,7 @@ jobs:
       - run: npm run verify:releases
       - run: npm run verify:docs
       - run: npm run test:download
+      - run: npm run test:backup-cli
   browser:
     runs-on: ubuntu-latest
     timeout-minutes: 30
