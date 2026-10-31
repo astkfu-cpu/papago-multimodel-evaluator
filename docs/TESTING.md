@@ -48,7 +48,7 @@ These tests verify application control flow, image reading and data protection. 
 
 ## Offline documentation links
 
-`npm run verify:docs` runs synthetic checker regressions and validates inline local Markdown links and images without network access. CI runs it in the unit job. Missing destinations, malformed URL encoding and paths outside the repository fail the check; diagnostics identify the file and line. Fenced/inline code examples and generated/dependency folders are excluded. External URLs, fragment anchors, reference-style links and HTML links are not validated, so passing this check does not establish that every documentation link works.
+`npm run verify:docs` runs synthetic checker regressions and validates inline local Markdown links/images and same-line reference destinations without network access. CI runs it in the unit job. Missing destinations, malformed URL encoding and paths outside the repository fail the check; diagnostics identify the file and line. Fenced/inline code examples and generated/dependency folders are excluded. Each reference definition is checked once, including unused definitions; diagnostics point to the definition rather than each use. External URLs, fragment anchors, HTML links, reference-use resolution (including undefined labels), and destinations on a following line are not validated, so passing this check does not establish that every documentation link works.
 
 ## CI installation and time budgets
 

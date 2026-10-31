@@ -48,3 +48,29 @@ test('does not scan generated files or dependency directories', () => fixture(ro
   writeFileSync(join(root, 'README.md'), '# Public docs');
   assert.deepEqual(checkDocs(root), {documents: 1, links: 0, problems: []});
 }));
+
+test('checks same-line reference destinations once per definition, including unused ones', () => fixture(root => {
+  mkdirSync(join(root, 'docs'));
+  writeFileSync(join(root, 'docs', '中文 guide.md'), '# Guide');
+  writeFileSync(join(root, 'image(1).png'), 'synthetic');
+  writeFileSync(join(root, 'README.md'), '[Guide][guide]\n[Again][guide]\n![Image][picture]\n[guide]: <docs/中文 guide.md> "Guide"\n[picture]: image(1).png\n[unused]: docs/中文%20guide.md#part\n[web]: https://example.invalid/\n[anchor]: #section');
+  const result = checkDocs(root);
+  assert.equal(result.links, 3);
+  assert.deepEqual(result.problems, []);
+}));
+
+test('reports reference destination failures at the definition line', () => fixture(root => {
+  writeFileSync(join(root, 'README.md'), '# Home\n[bad]: missing.md\n  [encoded]: bad%ZZ.md\n[outside]: ../outside.md');
+  const result = checkDocs(root);
+  assert.equal(result.links, 3);
+  assert.deepEqual(result.problems.map(p => [p.line, p.reason]), [
+    [2, 'missing target'], [3, 'invalid URL encoding'], [4, 'target outside repository']
+  ]);
+}));
+
+test('ignores reference definitions in code and destinations on a following line', () => fixture(root => {
+  writeFileSync(join(root, 'README.md'), '```md\n[code]: missing.md\n```\n`[inline]: missing.md`\n    [indented]: missing.md\n[multiline]:\n  missing.md\n[real]: missing.md');
+  const result = checkDocs(root);
+  assert.equal(result.links, 1);
+  assert.deepEqual(result.problems.map(p => [p.line, p.target]), [[8, 'missing.md']]);
+}));

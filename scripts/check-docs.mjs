@@ -17,8 +17,8 @@ function withoutCode(text) {
   }).join('\n');
 }
 
-// Offline check of inline Markdown links/images. It does not resolve anchors,
-// reference-style links, HTML links or external URLs.
+// Offline check of inline links/images and same-line reference destinations.
+// It does not resolve reference uses, anchors, HTML links or external URLs.
 export function checkDocs(directory) {
   const root = resolve(directory), files = [], problems = [];
   function walk(folder) {
@@ -33,7 +33,9 @@ export function checkDocs(directory) {
   for (const file of files) {
     const text = withoutCode(readFileSync(file, 'utf8'));
     const pattern = /!?\[[^\]\r\n]*\]\(\s*(?:<([^>\r\n]+)>|((?:\\.|[^()\s]|\([^()\r\n]*\))+))(?:\s+(?:"[^"]*"|'[^']*'))?\s*\)/g;
-    for (const match of text.matchAll(pattern)) {
+    const references = /^ {0,3}\[[^\]\r\n]+\]:[ \t]*(?:<([^>\r\n]+)>|((?:\\.|[^()\s]|\([^()\r\n]*\))+))(?:[ \t]+(?:"[^"\r\n]*"|'[^'\r\n]*'|\([^()\r\n]*\)))?[ \t]*\r?$/gm;
+    const destinations = [...text.matchAll(pattern), ...text.matchAll(references)].sort((a, b) => a.index - b.index);
+    for (const match of destinations) {
       const target = match[1] ?? match[2];
       if (/^[a-z][a-z\d+.-]*:/i.test(target) || target.startsWith('//') || target.startsWith('#')) continue;
       const pathname = target.split(/[?#]/, 1)[0];
@@ -56,6 +58,6 @@ export function checkDocs(directory) {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const result = checkDocs(resolve(dirname(fileURLToPath(import.meta.url)), '..'));
   for (const issue of result.problems) console.error(`${issue.file}:${issue.line}: ${issue.reason}: ${issue.target}`);
-  console.log(`Checked ${result.links} inline local links in ${result.documents} Markdown files; ${result.problems.length} problems.`);
+  console.log(`Checked ${result.links} local link destinations in ${result.documents} Markdown files; ${result.problems.length} problems.`);
   if (result.problems.length) process.exitCode = 1;
 }
