@@ -31,6 +31,8 @@ if ($actual -ine $entry[0].sha256) { throw 'SHA-256 mismatch. Download the ZIP a
 
 可运行 `npm run verify:download -- --help`（或 `-h`）查看用法，不读取安装包或清单。支持开头带 BOM 文件头的 UTF-8 清单；错误 JSON 或哈希不一致仍会失败，不改写原文件。
 
+若浏览器给下载文件改名（例如添加 `(1)`），可在 ZIP 和可选清单参数之后追加 `--filename "原文件名.zip"`，指定可信发布清单中的精确原文件名。例如：`npm run verify:download -- "/path/to/package (1).zip" --filename "package.zip"`。工具读取改名后的文件，以指定的唯一清单条目校验内容，不改文件名，也不凭相同哈希猜测模块。条目缺失、重复或文件内容不一致仍会失败。不使用此选项时，下载文件名仍须与清单完全一致。
+
 ## 安装与配置
 
 1. Edge 打开 `edge://extensions/`，Chrome 打开 `chrome://extensions/`。

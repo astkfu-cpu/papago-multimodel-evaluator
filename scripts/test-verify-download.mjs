@@ -81,3 +81,37 @@ test('CLI help exits successfully without needing a manifest or package argument
     assert.equal(result.stderr, '');
   }
 }));
+
+test('explicit original filename verifies a renamed download without modifying it', () => fixture(async ({root, zip, manifest, entry, bytes}) => {
+  const renamed = join(root, '公开 package (1).zip');
+  writeFileSync(renamed, bytes);
+  const before = readFileSync(manifest);
+  await assert.rejects(verifyDownload(renamed), /exactly one/);
+  assert.deepEqual(await verifyDownload(renamed, undefined, entry.filename), entry);
+  assert.deepEqual(readFileSync(renamed), bytes);
+  assert.deepEqual(readFileSync(manifest), before);
+  writeFileSync(renamed, Buffer.concat([bytes, Buffer.from('changed')]));
+  await assert.rejects(verifyDownload(renamed, manifest, entry.filename), /SHA-256 mismatch/);
+}));
+
+test('explicit filename requires a basename and one unambiguous manifest match', () => fixture(async ({zip, manifest, entry}) => {
+  for (const name of ['', '.', '..', '../package.zip', 'dir/package.zip', 'dir\\package.zip']) {
+    await assert.rejects(verifyDownload(zip, manifest, name), /original filename/);
+  }
+  await assert.rejects(verifyDownload(zip, manifest, 'unknown.zip'), /exactly one/);
+  writeFileSync(manifest, JSON.stringify([entry, entry]));
+  await assert.rejects(verifyDownload(zip, manifest, entry.filename), /exactly one/);
+}));
+
+test('CLI original filename option supports renamed paths and rejects incomplete options', () => fixture(async ({root, bytes, manifest, entry}) => {
+  const renamed = join(root, 'renamed download.zip'); writeFileSync(renamed, bytes);
+  const script = fileURLToPath(new URL('./verify-download.mjs', import.meta.url));
+  const invoke = args => spawnSync(process.execPath, [script, ...args], {encoding: 'utf8'});
+  for (const args of [[renamed, '--filename', entry.filename], [renamed, manifest, '--filename', entry.filename]]) {
+    const result = invoke(args); assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /Verified 公开 package.zip/);
+  }
+  for (const args of [[renamed, '--filename'], [renamed, '--filename', 'unknown.zip'], ['--filename', entry.filename, renamed]]) {
+    const result = invoke(args); assert.equal(result.status, 1); assert.doesNotMatch(result.stdout, /Verified/);
+  }
+}));
