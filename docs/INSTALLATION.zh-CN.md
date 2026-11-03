@@ -33,6 +33,8 @@ if ($actual -ine $entry[0].sha256) { throw 'SHA-256 mismatch. Download the ZIP a
 
 若浏览器给下载文件改名（例如添加 `(1)`），可在 ZIP 和可选清单参数之后追加 `--filename "原文件名.zip"`，指定可信发布清单中的精确原文件名。例如：`npm run verify:download -- "/path/to/package (1).zip" --filename "package.zip"`。工具读取改名后的文件，以指定的唯一清单条目校验内容，不改文件名，也不凭相同哈希猜测模块。条目缺失、重复或文件内容不一致仍会失败。不使用此选项时，下载文件名仍须与清单完全一致。
 
+供脚本调用时，可加 `--json`，成功后仅输出一个包含 `filename`（选中的清单文件名）和 `sha256` 的 JSON 对象。例如：`node scripts/verify-download.mjs "/path/to/package.zip" --json`，也可与 `--filename` 组合。失败仍非零退出，诊断写入 stderr，stdout 为空；使用结果前应先检查退出状态。解析 stdout 时直接调用 Node，避免 npm 自身的命令提示混入输出。默认的人读输出保持不变。
+
 ## 安装与配置
 
 1. Edge 打开 `edge://extensions/`，Chrome 打开 `chrome://extensions/`。

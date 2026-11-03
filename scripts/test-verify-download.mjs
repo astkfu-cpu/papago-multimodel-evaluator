@@ -115,3 +115,30 @@ test('CLI original filename option supports renamed paths and rejects incomplete
     const result = invoke(args); assert.equal(result.status, 1); assert.doesNotMatch(result.stdout, /Verified/);
   }
 }));
+
+test('JSON output is one parseable result and composes with renamed downloads', () => fixture(async ({root, zip, manifest, entry, bytes}) => {
+  const script = fileURLToPath(new URL('./verify-download.mjs', import.meta.url));
+  const renamed = join(root, 'renamed (1).zip'); writeFileSync(renamed, bytes);
+  const before = readFileSync(manifest);
+  for (const args of [[zip, '--json'], ['--json', zip], [renamed, manifest, '--filename', entry.filename, '--json']]) {
+    const result = spawnSync(process.execPath, [script, ...args], {encoding: 'utf8'});
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), entry);
+    assert.equal(result.stdout.trim().split('\n').length, 1);
+    assert.equal(result.stderr, '');
+  }
+  assert.deepEqual(readFileSync(renamed), bytes);
+  assert.deepEqual(readFileSync(manifest), before);
+}));
+
+test('JSON mode failures emit no success payload and retain nonzero status', () => fixture(async ({zip, manifest, bytes}) => {
+  const script = fileURLToPath(new URL('./verify-download.mjs', import.meta.url));
+  const invoke = args => spawnSync(process.execPath, [script, ...args], {encoding: 'utf8'});
+  writeFileSync(zip, Buffer.concat([bytes, Buffer.from('changed')]));
+  for (const args of [[zip, '--json'], [zip, '--json', '--json'], ['--json'], [zip, manifest, '--filename', '--json']]) {
+    const result = invoke(args);
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, '');
+    assert.notEqual(result.stderr, '');
+  }
+}));

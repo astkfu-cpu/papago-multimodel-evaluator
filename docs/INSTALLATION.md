@@ -36,6 +36,8 @@ Use `npm run verify:download -- --help` (or `-h`) to display usage without readi
 
 If your browser renamed a download (for example, adding `(1)`), append `--filename "ORIGINAL_NAME.zip"` after the ZIP and optional manifest arguments. Use the exact original filename from the trusted release manifest. For example: `npm run verify:download -- "/path/to/package (1).zip" --filename "package.zip"`. The helper reads the renamed file and checks its bytes against that single named entry; it does not rename files or guess a module from a matching hash. Missing/duplicate entries and mismatched bytes still fail. Without this option, the downloaded basename must continue to match the manifest exactly.
 
+For scripts, add `--json` to emit one JSON object with `filename` (the selected manifest name) and `sha256` on success. For example: `node scripts/verify-download.mjs "/path/to/package.zip" --json`. It also works with `--filename`. Failures still exit nonzero, write diagnostics to stderr and leave stdout empty; check the exit status before using a result. Invoke Node directly when parsing stdout, because npm may add its own command banner. Default human-readable output is unchanged.
+
 ### Load the extension
 
 1. Open `edge://extensions/` or `chrome://extensions/` in a normal browser profile.

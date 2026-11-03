@@ -25,7 +25,11 @@ export async function verifyDownload(zipPath, manifestPath = resolve(dirname(zip
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
-  const usage = 'Usage: node scripts/verify-download.mjs ZIP [MANIFEST] [--filename ORIGINAL_NAME]\nMANIFEST defaults to releases.json beside ZIP.\n--filename selects the exact manifest filename for a renamed download.';
+  const usage = 'Usage: node scripts/verify-download.mjs ZIP [MANIFEST] [--filename ORIGINAL_NAME] [--json]\nMANIFEST defaults to releases.json beside ZIP.\n--filename selects the exact manifest filename for a renamed download.';
+  const jsonIndex = args.indexOf('--json');
+  const jsonOutput = jsonIndex !== -1;
+  if (jsonOutput) args.splice(jsonIndex, 1);
+  const invalidJson = args.includes('--json');
   const optionIndex = args.indexOf('--filename');
   let filename;
   let invalidOption = false;
@@ -35,13 +39,13 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   }
   if (args.length === 1 && ['--help', '-h'].includes(args[0])) {
     console.log(usage);
-  } else if (invalidOption || args.length < 1 || args.length > 2) {
+  } else if (invalidJson || invalidOption || args.length < 1 || args.length > 2) {
     console.error(usage);
     process.exitCode = 1;
   } else {
     try {
       const result = await verifyDownload(args[0], args[1], filename);
-      console.log(`Verified ${result.filename}\nSHA-256: ${result.sha256}`);
+      console.log(jsonOutput ? JSON.stringify(result) : `Verified ${result.filename}\nSHA-256: ${result.sha256}`);
     } catch (error) {
       console.error('Download verification failed: ' + error.message);
       process.exitCode = 1;
