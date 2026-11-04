@@ -59,3 +59,5 @@ The browser job reports Linux system-dependency installation and Chromium downlo
 Set `PAPAGO_PAIRWISE_PACKAGE` to a separately authorized local test package to replace the public fixture. `PAPAGO_PAIRWISE_PREVIOUS_ZIP` selects an archived upgrade package. Private customer fixtures/rubrics are excluded from the repository. Absolute browser tests are available through `npm run test:e2e`.
 
 Earlier private maintenance records mention 10 unit checks, 18 browser scenarios and a 1.0.1-to-1.0.2 upgrade. These are historical controlled tests, not counts of human reviewers or public accuracy measurements.
+
+The checker excludes same-line code spans by matching complete backtick runs of equal length, including spans containing literal backticks. Unmatched delimiters do not hide links; real destinations beside a code span are still checked. This is a limited offline checker, not a complete Markdown parser.

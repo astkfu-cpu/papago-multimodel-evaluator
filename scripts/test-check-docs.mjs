@@ -74,3 +74,16 @@ test('ignores reference definitions in code and destinations on a following line
   assert.equal(result.links, 1);
   assert.deepEqual(result.problems.map(p => [p.line, p.target]), [[8, 'missing.md']]);
 }));
+
+test('code spans use exact backtick run lengths even with literal backticks inside', () => fixture(root => {
+  const tick = String.fromCharCode(96);
+  writeFileSync(join(root, 'README.md'), [
+    'Example ' + tick.repeat(2) + '[code](missing.md) ' + tick + ' literal' + tick.repeat(2) + ' [real](real-missing.md)',
+    'Example ' + tick.repeat(3) + '![code](missing.png) ' + tick.repeat(2) + ' literal' + tick.repeat(3),
+    'Unclosed ' + tick.repeat(2) + '[visible](visible-missing.md)' + tick,
+    'Two ' + tick + '[code](missing.md)' + tick + ' then ' + tick.repeat(2) + '[code](missing.md) ' + tick + ' literal' + tick.repeat(2)
+  ].join('\r\n'));
+  const result = checkDocs(root);
+  assert.equal(result.links, 2);
+  assert.deepEqual(result.problems.map(p => [p.line, p.target]), [[1, 'real-missing.md'], [3, 'visible-missing.md']]);
+}));

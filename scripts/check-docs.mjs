@@ -4,6 +4,24 @@ import {fileURLToPath} from 'node:url';
 
 const ignored = new Set(['.git', 'node_modules', 'tmp', 'outputs', 'work']);
 
+function withoutInlineCode(line) {
+  const runs = [...line.matchAll(/`+/g)], next = new Map(), closing = [];
+  for (let i = runs.length - 1; i >= 0; i--) {
+    closing[i] = next.get(runs[i][0].length);
+    next.set(runs[i][0].length, i);
+  }
+  let result = '', cursor = 0;
+  for (let i = 0; i < runs.length; i++) {
+    const endRun = closing[i];
+    if (endRun === undefined) continue;
+    const start = runs[i].index, end = runs[endRun].index + runs[endRun][0].length;
+    result += line.slice(cursor, start) + ' '.repeat(end - start);
+    cursor = end;
+    i = endRun;
+  }
+  return result + line.slice(cursor);
+}
+
 function withoutCode(text) {
   let fence = null;
   return text.split('\n').map(line => {
@@ -13,7 +31,7 @@ function withoutCode(text) {
       return '';
     }
     if (opening) { fence = opening[1]; return ''; }
-    return line.replace(/(`+)[^`]*?\1/g, match => ' '.repeat(match.length));
+    return withoutInlineCode(line);
   }).join('\n');
 }
 
