@@ -67,4 +67,16 @@ The public pairwise module has a generic template; it does not supply private cu
 - Missing output fields: bounded full-image format recovery may run; persistent failure pauses without filling.
 - Changed item/direction/images: old mismatched advice is hidden and filling disabled. Reanalyze the current item.
 
+### Absolute module: recover from image-capture errors
+
+These messages come from the online absolute-scoring module loaded from the repository root. Stop any current run before changing capture settings. Check the original task tab and current item, then explicitly retry a single-item analysis.
+
+| Message shown | Recovery |
+| --- | --- |
+| `Papago页面当前不可见` (Papago page is not visible) | Select the original Papago tab, restore a minimized window and bring that browser window into focus. Foreground capture checks all three conditions; having the page open in another tab or an unfocused window is insufficient. |
+| `后台取图权限尚未授权` or `Edge 未授予后台取图权限` (background-capture permission missing) | In the same browser profile, reload the existing extension from its extension card, accept a permission prompt only if you intend to grant it, and refresh the task page. If permission remains denied, leave `切换标签页或最小化后继续` unchecked and use the foreground route above. Preserve the existing extension installation and archives. |
+| `无法连接后台Papago页面` with a developer-tools hint | Stop the run, close developer tools attached to that task page, and retry with the original task window in the foreground. If it still fails, retain the error for a redacted report rather than clearing extension data. |
+
+The UI label `切换标签页或最小化后继续` means “continue after switching tabs or minimizing.” It controls the absolute module's background-capture option. Restoring visibility or permission is not evidence that analysis succeeded; verify the new result before filling.
+
 Report extension/browser versions, steps and redacted errors through [Issues](https://github.com/astkfu-cpu/papago-multimodel-evaluator/issues/new/choose).
