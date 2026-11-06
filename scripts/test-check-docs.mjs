@@ -87,3 +87,18 @@ test('code spans use exact backtick run lengths even with literal backticks insi
   assert.equal(result.links, 2);
   assert.deepEqual(result.problems.map(p => [p.line, p.target]), [[1, 'real-missing.md'], [3, 'visible-missing.md']]);
 }));
+
+test('escaped opening brackets are literal while even escapes and escaped image markers retain links', () => fixture(root => {
+  const slash = String.fromCharCode(92);
+  writeFileSync(join(root, 'README.md'), [
+    slash + '[example](literal-missing.md)',
+    slash + '![link](escaped-marker.md)',
+    slash.repeat(2) + '[link](even-escape.md)',
+    '!' + slash + '[example](literal-missing.png)',
+    slash.repeat(3) + '[example](literal-missing.md)',
+    '[real](real-missing.md)'
+  ].join('\r\n'));
+  const result = checkDocs(root);
+  assert.equal(result.links, 3);
+  assert.deepEqual(result.problems.map(p => [p.line, p.target]), [[2, 'escaped-marker.md'], [3, 'even-escape.md'], [6, 'real-missing.md']]);
+}));

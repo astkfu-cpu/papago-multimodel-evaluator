@@ -54,6 +54,10 @@ export function checkDocs(directory) {
     const references = /^ {0,3}\[[^\]\r\n]+\]:[ \t]*(?:<([^>\r\n]+)>|((?:\\.|[^()\s]|\([^()\r\n]*\))+))(?:[ \t]+(?:"[^"\r\n]*"|'[^'\r\n]*'|\([^()\r\n]*\)))?[ \t]*\r?$/gm;
     const destinations = [...text.matchAll(pattern), ...text.matchAll(references)].sort((a, b) => a.index - b.index);
     for (const match of destinations) {
+      const bracket = match.index + (match[0].startsWith('!') ? 1 : 0);
+      let escapes = 0;
+      for (let i = bracket - 1; i >= 0 && text[i] === '\\'; i--) escapes++;
+      if (escapes % 2 === 1) continue; // An escaped opening bracket is literal text.
       const target = match[1] ?? match[2];
       if (/^[a-z][a-z\d+.-]*:/i.test(target) || target.startsWith('//') || target.startsWith('#')) continue;
       const pathname = target.split(/[?#]/, 1)[0];

@@ -61,3 +61,5 @@ Set `PAPAGO_PAIRWISE_PACKAGE` to a separately authorized local test package to r
 Earlier private maintenance records mention 10 unit checks, 18 browser scenarios and a 1.0.1-to-1.0.2 upgrade. These are historical controlled tests, not counts of human reviewers or public accuracy measurements.
 
 The checker excludes same-line code spans by matching complete backtick runs of equal length, including spans containing literal backticks. Unmatched delimiters do not hide links; real destinations beside a code span are still checked. This is a limited offline checker, not a complete Markdown parser.
+
+Escaping an inline link or image's opening bracket makes it literal text, so the checker excludes those examples. An even run of preceding backslashes leaves the bracket active, and escaping only an image's exclamation mark still leaves a link destination to check.
