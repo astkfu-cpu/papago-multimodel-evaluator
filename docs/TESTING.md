@@ -63,3 +63,7 @@ Earlier private maintenance records mention 10 unit checks, 18 browser scenarios
 The checker excludes same-line code spans by matching complete backtick runs of equal length, including spans containing literal backticks. Unmatched delimiters do not hide links; real destinations beside a code span are still checked. This is a limited offline checker, not a complete Markdown parser.
 
 Escaping an inline link or image's opening bracket makes it literal text, so the checker excludes those examples. An even run of preceding backslashes leaves the bracket active, and escaping only an image's exclamation mark still leaves a link destination to check.
+
+## Unit CI platforms
+
+The unit job runs the same Node.js 22 checks on both Ubuntu and Windows: module unit tests, release integrity, documentation links, downloaded-package verification and offline backup inspection. Each matrix job retains a 10-minute limit. A failure on one platform does not cancel the other, so platform-specific path and CLI failures remain visible. Browser/demo/archive UI and upgrade regressions continue in the Linux browser job; passing the Windows unit job does not establish Windows browser coverage or live-model accuracy.
