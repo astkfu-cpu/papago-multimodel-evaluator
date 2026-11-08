@@ -5,7 +5,11 @@ import {fileURLToPath} from 'node:url';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const sha=path=>createHash('sha256').update(readFileSync(path)).digest('hex');
 const releases=JSON.parse(readFileSync(resolve(root,'dist/releases.json'),'utf8'));
+if(!Array.isArray(releases) || releases.length===0)throw new Error('Release manifest must be a non-empty array.');
+const filenames=new Set();
 for(const r of releases){
+ if(filenames.has(r.filename))throw new Error('Duplicate package filename: '+r.filename);
+ filenames.add(r.filename);
  if(sha(resolve(root,'dist',r.filename))!==r.sha256)throw new Error('Package digest mismatch: '+r.filename);
  if(r.module==='pairwise' && r.version!=='1.1.0')continue; // Archived package, kept immutable.
  const folder=r.module==='pairwise'?'pairwise':r.module==='demo'?'demo':'';

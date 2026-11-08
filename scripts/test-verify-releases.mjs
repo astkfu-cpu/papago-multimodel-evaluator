@@ -73,3 +73,25 @@ test('archived packages still require their original bytes', () => fixture(({roo
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Package digest mismatch: pairwise-old.zip/);
 }));
+
+test('empty or non-array release manifests cannot report successful verification', () => fixture(({root, verify}) => {
+  for (const value of [[], {}, null]) {
+    writeFileSync(join(root, 'dist', 'releases.json'), JSON.stringify(value));
+    const result = verify();
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Release manifest must be a non-empty array/);
+    assert.doesNotMatch(result.stdout, /checks passed/);
+  }
+}));
+
+test('duplicate package filenames are rejected without rewriting the manifest', () => fixture(({root, verify}) => {
+  const path = join(root, 'dist', 'releases.json');
+  const entries = JSON.parse(readFileSync(path, 'utf8'));
+  writeFileSync(path, JSON.stringify([...entries, entries[0]]));
+  const before = readFileSync(path);
+  const result = verify();
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Duplicate package filename: absolute-current.zip/);
+  assert.doesNotMatch(result.stdout, /checks passed/);
+  assert.deepEqual(readFileSync(path), before);
+}));

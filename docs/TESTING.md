@@ -44,7 +44,7 @@ These tests verify application control flow, image reading and data protection. 
 
 ## Release verification regressions
 
-`npm run verify:releases` first runs five isolated synthetic regressions, then checks the actual repository packages and recorded current source hashes. The regressions exercise the real verifier in a temporary fixture: valid current modules plus a historical package pass; a one-byte package change, changed/missing current source, or replaced historical package fails. Historical source may differ from today's source, but its package digest must still match. Fixtures contain synthetic bytes and never modify the repository's published ZIPs. These checks verify integrity enforcement, not ZIP extraction safety or model accuracy.
+`npm run verify:releases` first runs seven isolated synthetic regressions, then checks the actual repository packages and recorded current source hashes. The regressions exercise the real verifier in a temporary fixture: valid current modules plus a historical package pass; a one-byte package change, changed/missing current source, or replaced historical package fails. Historical source may differ from today's source, but its package digest must still match. Fixtures contain synthetic bytes and never modify the repository's published ZIPs. These checks verify integrity enforcement, not ZIP extraction safety or model accuracy.
 
 ## Offline documentation links
 
@@ -67,3 +67,5 @@ Escaping an inline link or image's opening bracket makes it literal text, so the
 ## Unit CI platforms
 
 The unit job runs the same Node.js 22 checks on both Ubuntu and Windows: module unit tests, release integrity, documentation links, downloaded-package verification and offline backup inspection. Each matrix job retains a 10-minute limit. A failure on one platform does not cancel the other, so platform-specific path and CLI failures remain visible. Browser/demo/archive UI and upgrade regressions continue in the Linux browser job; passing the Windows unit job does not establish Windows browser coverage or live-model accuracy.
+
+Release verification rejects empty/non-array manifests and duplicate package filenames before reporting success. Synthetic regressions cover both cases without rewriting the manifest. These checks do not establish that every intended module or source file is listed; maintainers must still review the manifest's release inventory.
