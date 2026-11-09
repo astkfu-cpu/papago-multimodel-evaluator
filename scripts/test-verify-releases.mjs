@@ -95,3 +95,32 @@ test('duplicate package filenames are rejected without rewriting the manifest', 
   assert.doesNotMatch(result.stdout, /checks passed/);
   assert.deepEqual(readFileSync(path), before);
 }));
+
+test('current modules cannot skip source verification with empty or malformed hash maps', () => {
+  for (const module of ['absolute', 'pairwise', 'demo']) fixture(({root, verify}) => {
+    const path = join(root, 'dist', 'releases.json');
+    const original = JSON.parse(readFileSync(path, 'utf8'));
+    const folder = module === 'absolute' ? root : join(root, module);
+    writeFileSync(join(folder, 'manifest.json'), 'synthetic changed source');
+    for (const hashes of [{}, [], null, '', undefined]) {
+      const entries = original.map(entry => entry.module === module && entry.version !== '1.0.2' ? {...entry, source_files_sha256: hashes} : entry);
+      writeFileSync(path, JSON.stringify(entries));
+      const before = readFileSync(path), result = verify();
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, new RegExp('Current source hash map must be a non-empty object: ' + module));
+      assert.doesNotMatch(result.stdout, /checks passed/);
+      assert.deepEqual(readFileSync(path), before);
+    }
+  });
+});
+
+test('archived source maps remain optional while their package digests stay mandatory', () => fixture(({root, verify}) => {
+  const path = join(root, 'dist', 'releases.json');
+  const entries = JSON.parse(readFileSync(path, 'utf8'));
+  delete entries.find(entry => entry.version === '1.0.2').source_files_sha256;
+  writeFileSync(path, JSON.stringify(entries));
+  const good = verify(); assert.equal(good.status, 0, good.stderr);
+  writeFileSync(join(root, 'dist', 'pairwise-old.zip'), 'synthetic changed archive');
+  const bad = verify(); assert.equal(bad.status, 1);
+  assert.match(bad.stderr, /Package digest mismatch: pairwise-old.zip/);
+}));

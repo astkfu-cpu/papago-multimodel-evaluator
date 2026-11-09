@@ -13,7 +13,9 @@ for(const r of releases){
  if(sha(resolve(root,'dist',r.filename))!==r.sha256)throw new Error('Package digest mismatch: '+r.filename);
  if(r.module==='pairwise' && r.version!=='1.1.0')continue; // Archived package, kept immutable.
  const folder=r.module==='pairwise'?'pairwise':r.module==='demo'?'demo':'';
- for(const [name,expected] of Object.entries(r.source_files_sha256)){
+ const hashes=r.source_files_sha256;
+ if(!hashes || typeof hashes!=='object' || Array.isArray(hashes) || Object.keys(hashes).length===0)throw new Error('Current source hash map must be a non-empty object: '+r.module);
+ for(const [name,expected] of Object.entries(hashes)){
   const path=resolve(root,folder,name);
   if(!existsSync(path) || sha(path)!==expected)throw new Error('Source digest mismatch: '+r.module+'/'+name);
  }
