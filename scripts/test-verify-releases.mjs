@@ -15,7 +15,7 @@ function fixture(run) {
     copyFileSync(new URL('./verify-releases.mjs', import.meta.url), join(root, 'scripts', 'verify-releases.mjs'));
     const entries = [];
     for (const [module, version, folder] of [['absolute', '0.28.1', ''], ['pairwise', '1.1.0', 'pairwise'], ['demo', '1.0.0', 'demo']]) {
-      const source = 'synthetic current ' + module;
+      const source = JSON.stringify({version, synthetic: 'current ' + module});
       const filename = module + '-current.zip';
       const bytes = 'synthetic package bytes ' + module;
       writeFileSync(join(root, folder, 'manifest.json'), source);
@@ -54,7 +54,7 @@ test('a one-byte package change fails verification', () => fixture(({root, verif
 }));
 
 test('modified current source fails verification', () => fixture(({root, verify}) => {
-  writeFileSync(join(root, 'pairwise', 'manifest.json'), 'synthetic modified source');
+  writeFileSync(join(root, 'pairwise', 'manifest.json'), JSON.stringify({version: '1.1.0', synthetic: 'modified source'}));
   const result = verify();
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Source digest mismatch: pairwise\/manifest.json/);
@@ -101,7 +101,7 @@ test('current modules cannot skip source verification with empty or malformed ha
     const path = join(root, 'dist', 'releases.json');
     const original = JSON.parse(readFileSync(path, 'utf8'));
     const folder = module === 'absolute' ? root : join(root, module);
-    writeFileSync(join(folder, 'manifest.json'), 'synthetic changed source');
+    writeFileSync(join(folder, 'manifest.json'), JSON.stringify({version: module === 'pairwise' ? '1.1.0' : 'synthetic', synthetic: 'changed source'}));
     for (const hashes of [{}, [], null, '', undefined]) {
       const entries = original.map(entry => entry.module === module && entry.version !== '1.0.2' ? {...entry, source_files_sha256: hashes} : entry);
       writeFileSync(path, JSON.stringify(entries));
@@ -123,4 +123,27 @@ test('archived source maps remain optional while their package digests stay mand
   writeFileSync(join(root, 'dist', 'pairwise-old.zip'), 'synthetic changed archive');
   const bad = verify(); assert.equal(bad.status, 1);
   assert.match(bad.stderr, /Package digest mismatch: pairwise-old.zip/);
+}));
+
+test('source verification follows the current pairwise manifest version after an upgrade', () => fixture(({root, verify}) => {
+  const source = join(root, 'pairwise', 'manifest.json'), path = join(root, 'dist', 'releases.json');
+  const next = JSON.stringify({version: '1.2.0', synthetic: 'next source'});
+  writeFileSync(source, next);
+  const entries = JSON.parse(readFileSync(path, 'utf8'));
+  const entry = entries.find(r => r.module === 'pairwise' && r.version === '1.1.0');
+  entry.version = '1.2.0'; entry.source_files_sha256['manifest.json'] = digest(next);
+  writeFileSync(path, JSON.stringify(entries));
+  const good = verify(); assert.equal(good.status, 0, good.stderr);
+  writeFileSync(source, JSON.stringify({version: '1.2.0', synthetic: 'changed after packaging'}));
+  const bad = verify(); assert.equal(bad.status, 1);
+  assert.match(bad.stderr, /Source digest mismatch: pairwise\/manifest.json/);
+}));
+
+test('a release manifest cannot omit the installed pairwise source version', () => fixture(({root, verify}) => {
+  const path = join(root, 'dist', 'releases.json');
+  const entries = JSON.parse(readFileSync(path, 'utf8')).filter(r => !(r.module === 'pairwise' && r.version === '1.1.0'));
+  writeFileSync(path, JSON.stringify(entries));
+  const result = verify(); assert.equal(result.status, 1);
+  assert.match(result.stderr, /Expected exactly one current pairwise release for 1.1.0/);
+  assert.doesNotMatch(result.stdout, /checks passed/);
 }));

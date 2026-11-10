@@ -44,7 +44,7 @@ These tests verify application control flow, image reading and data protection. 
 
 ## Release verification regressions
 
-`npm run verify:releases` first runs nine isolated synthetic regressions, then checks the actual repository packages and recorded current source hashes. The regressions exercise the real verifier in a temporary fixture: valid current modules plus a historical package pass; a one-byte package change, changed/missing current source, or replaced historical package fails. Historical source may differ from today's source, but its package digest must still match. Fixtures contain synthetic bytes and never modify the repository's published ZIPs. These checks verify integrity enforcement, not ZIP extraction safety or model accuracy.
+`npm run verify:releases` first runs eleven isolated synthetic regressions, then checks the actual repository packages and recorded current source hashes. The regressions exercise the real verifier in a temporary fixture: valid current modules plus a historical package pass; a one-byte package change, changed/missing current source, or replaced historical package fails. Historical source may differ from today's source, but its package digest must still match. Fixtures contain synthetic bytes and never modify the repository's published ZIPs. These checks verify integrity enforcement, not ZIP extraction safety or model accuracy.
 
 ## Offline documentation links
 
@@ -71,3 +71,5 @@ The unit job runs the same Node.js 22 checks on both Ubuntu and Windows: module 
 Release verification rejects empty/non-array manifests and duplicate package filenames before reporting success. Synthetic regressions cover both cases without rewriting the manifest. These checks do not establish that every intended module or source file is listed; maintainers must still review the manifest's release inventory.
 
 Current modules must provide a non-empty object for their source-file hashes; an empty object, array, null, string or missing map cannot silently bypass source verification. Regressions exercise all three current modules with changed synthetic source. Archived pairwise packages retain their existing exception from current-source checks, while their ZIP digests remain mandatory. This does not replace review of which source files are listed.
+
+The current pairwise version is read from `pairwise/manifest.json`, and the release manifest must contain exactly one matching pairwise entry. Source verification follows that version after upgrades instead of assuming 1.1.0 forever. Other pairwise versions retain the archived-source exception; every listed ZIP still requires its recorded digest. Synthetic 1.2.0 fixtures exercise this upgrade boundary without changing real release versions or packages.

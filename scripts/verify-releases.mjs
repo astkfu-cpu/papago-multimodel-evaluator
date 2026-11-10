@@ -6,12 +6,15 @@ const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const sha=path=>createHash('sha256').update(readFileSync(path)).digest('hex');
 const releases=JSON.parse(readFileSync(resolve(root,'dist/releases.json'),'utf8'));
 if(!Array.isArray(releases) || releases.length===0)throw new Error('Release manifest must be a non-empty array.');
+const pairwiseVersion=JSON.parse(readFileSync(resolve(root,'pairwise/manifest.json'),'utf8')).version;
+if(typeof pairwiseVersion!=='string' || !pairwiseVersion)throw new Error('Current pairwise manifest must declare a version.');
+if(releases.filter(r=>r && r.module==='pairwise' && r.version===pairwiseVersion).length!==1)throw new Error('Expected exactly one current pairwise release for '+pairwiseVersion);
 const filenames=new Set();
 for(const r of releases){
  if(filenames.has(r.filename))throw new Error('Duplicate package filename: '+r.filename);
  filenames.add(r.filename);
  if(sha(resolve(root,'dist',r.filename))!==r.sha256)throw new Error('Package digest mismatch: '+r.filename);
- if(r.module==='pairwise' && r.version!=='1.1.0')continue; // Archived package, kept immutable.
+ if(r.module==='pairwise' && r.version!==pairwiseVersion)continue; // Archived package, kept immutable.
  const folder=r.module==='pairwise'?'pairwise':r.module==='demo'?'demo':'';
  const hashes=r.source_files_sha256;
  if(!hashes || typeof hashes!=='object' || Array.isArray(hashes) || Object.keys(hashes).length===0)throw new Error('Current source hash map must be a non-empty object: '+r.module);
