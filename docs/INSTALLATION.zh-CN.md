@@ -35,6 +35,14 @@ if ($actual -ine $entry[0].sha256) { throw 'SHA-256 mismatch. Download the ZIP a
 
 供脚本调用时，可加 `--json`，成功后仅输出一个包含 `filename`（选中的清单文件名）和 `sha256` 的 JSON 对象。例如：`node scripts/verify-download.mjs "/path/to/package.zip" --json`，也可与 `--filename` 组合。失败仍非零退出，诊断写入 stderr，stdout 为空；使用结果前应先检查退出状态。解析 stdout 时直接调用 Node，避免 npm 自身的命令提示混入输出。默认的人读输出保持不变。
 
+### 可选：只读检查解压后的扩展目录
+
+已有 Node.js 20+ 和仓库副本时，可在仓库根目录运行 `npm run check:unpacked -- "/path/to/extracted-extension"`，在“加载解压缩的扩展”前检查目录。选择直接包含 `manifest.json` 的文件夹。检查仓库副本时，绝对评价用 `npm run check:unpacked -- .`，成对模块用 `npm run check:unpacked -- ./pairwise`。可用 `--help` 查看用法。
+
+工具检查 Manifest V3 的名称/版本字段，以及声明的后台 service worker、侧栏页面、内容脚本 JavaScript/CSS 文件。缺文件、用目录代替文件、列表格式错误或绝对/越界声明路径会以非零状态失败。成功时输出名称、版本和去重后声明文件数的 JSON 摘要。不安装、不改文件或浏览器设置、不读取归档、不调用 API。`npm run test:unpacked` 使用合成样本和两个公开模块目录，在 Windows/Ubuntu CI 执行。
+
+这是有限范围的安装前检查，不代表浏览器已成功加载，也不是安全或哈希审计。它不追踪 import/HTML 引用，不验证所有 manifest 字段、图标、权限或浏览器版本兼容性；仍须执行本指南中的 ZIP 校验和浏览器步骤。独立演示是网页，没有扩展 manifest。
+
 ## 安装与配置
 
 1. Edge 打开 `edge://extensions/`，Chrome 打开 `chrome://extensions/`。

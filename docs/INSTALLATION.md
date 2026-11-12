@@ -38,6 +38,14 @@ If your browser renamed a download (for example, adding `(1)`), append `--filena
 
 For scripts, add `--json` to emit one JSON object with `filename` (the selected manifest name) and `sha256` on success. For example: `node scripts/verify-download.mjs "/path/to/package.zip" --json`. It also works with `--filename`. Failures still exit nonzero, write diagnostics to stderr and leave stdout empty; check the exit status before using a result. Invoke Node directly when parsing stdout, because npm may add its own command banner. Default human-readable output is unchanged.
 
+### Optional read-only check of an unpacked directory
+
+With Node.js 20+ and a repository checkout, run `npm run check:unpacked -- "/path/to/extracted-extension"` from the repository root before **Load unpacked**. Select the directory directly containing `manifest.json`. For a checkout, use `npm run check:unpacked -- .` for absolute scoring or `npm run check:unpacked -- ./pairwise` for comparison. Use `--help` to view usage.
+
+The helper checks Manifest V3 name/version fields and the files declared as the background service worker, side-panel page and content-script JavaScript/CSS. Missing files, directories used as files, invalid lists and absolute/traversing declared paths fail with a nonzero exit status. Success prints a JSON summary with the name, version and number of distinct declared files checked. It does not install, rewrite files, change browser settings, read archives or call an API. `npm run test:unpacked` exercises synthetic fixtures and both public module directories in Windows/Ubuntu CI.
+
+This is a limited preflight check, not browser-load confirmation or a security/hash audit. It does not follow imports or HTML references, validate every manifest field, or check icons, permissions and browser-version compatibility. Continue using the ZIP checksum and browser steps in this guide. The standalone demo is a web page and has no extension manifest.
+
 ### Load the extension
 
 1. Open `edge://extensions/` or `chrome://extensions/` in a normal browser profile.

@@ -17,6 +17,8 @@
     "test:download": "node --test scripts/test-verify-download.mjs",
     "inspect:backup": "node scripts/inspect-backup.mjs",
     "test:backup-cli": "node --test scripts/test-inspect-backup.mjs",
+    "check:unpacked": "node scripts/check-unpacked.mjs",
+    "test:unpacked": "node --test scripts/test-check-unpacked.mjs",
     "test:upgrade": "node pairwise/test-upgrade.cjs"
   },
   "devDependencies": {
