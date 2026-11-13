@@ -41,6 +41,8 @@ if ($actual -ine $entry[0].sha256) { throw 'SHA-256 mismatch. Download the ZIP a
 
 工具检查 Manifest V3 的名称/版本字段，以及声明的后台 service worker、侧栏页面、内容脚本 JavaScript/CSS 文件。缺文件、用目录代替文件、列表格式错误或绝对/越界声明路径会以非零状态失败。成功时输出名称、版本和去重后声明文件数的 JSON 摘要。不安装、不改文件或浏览器设置、不读取归档、不调用 API。`npm run test:unpacked` 使用合成样本和两个公开模块目录，在 Windows/Ubuntu CI 执行。
 
+显式为 null 的内容脚本列表、null/非对象分组及 null 的 JavaScript/CSS 列表会失败，不会被当作未声明。合法省略可选列表和仅声明 CSS 仍受支持。
+
 这是有限范围的安装前检查，不代表浏览器已成功加载，也不是安全或哈希审计。它不追踪 import/HTML 引用，不验证所有 manifest 字段、图标、权限或浏览器版本兼容性；仍须执行本指南中的 ZIP 校验和浏览器步骤。独立演示是网页，没有扩展 manifest。
 
 ## 安装与配置

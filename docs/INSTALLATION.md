@@ -44,6 +44,8 @@ With Node.js 20+ and a repository checkout, run `npm run check:unpacked -- "/pat
 
 The helper checks Manifest V3 name/version fields and the files declared as the background service worker, side-panel page and content-script JavaScript/CSS. Missing files, directories used as files, invalid lists and absolute/traversing declared paths fail with a nonzero exit status. Success prints a JSON summary with the name, version and number of distinct declared files checked. It does not install, rewrite files, change browser settings, read archives or call an API. `npm run test:unpacked` exercises synthetic fixtures and both public module directories in Windows/Ubuntu CI.
 
+Explicit null content-script lists, null/non-object groups and null JavaScript/CSS lists fail instead of being treated as absent. Omitted optional lists and CSS-only declarations remain supported.
+
 This is a limited preflight check, not browser-load confirmation or a security/hash audit. It does not follow imports or HTML references, validate every manifest field, or check icons, permissions and browser-version compatibility. Continue using the ZIP checksum and browser steps in this guide. The standalone demo is a web page and has no extension manifest.
 
 ### Load the extension

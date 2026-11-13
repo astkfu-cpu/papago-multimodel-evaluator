@@ -19,11 +19,12 @@ export function checkUnpacked(directory) {
   }
   if (manifest.background?.service_worker !== undefined) add(manifest.background.service_worker);
   if (manifest.side_panel?.default_path !== undefined) add(manifest.side_panel.default_path);
-  const groups = manifest.content_scripts ?? [];
+  const groups = manifest.content_scripts === undefined ? [] : manifest.content_scripts;
   if (!Array.isArray(groups)) throw new Error('content_scripts must be an array.');
   for (const group of groups) {
+    if (!group || typeof group !== 'object' || Array.isArray(group)) throw new Error('Content script entries must be objects.');
     for (const key of ['js', 'css']) {
-      const paths = group?.[key] ?? [];
+      const paths = group[key] === undefined ? [] : group[key];
       if (!Array.isArray(paths)) throw new Error('Content script file lists must be arrays.');
       for (const path of paths) add(path);
     }

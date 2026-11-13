@@ -59,3 +59,18 @@ test('current public extension directories pass declared-file inspection', () =>
   assert(checkUnpacked(root).checkedFiles > 0);
   assert(checkUnpacked(join(root, 'pairwise')).checkedFiles > 0);
 });
+
+test('explicit null lists and non-object content groups fail without treating them as absent', () => fixture(({root, manifest, save}) => {
+  for (const content_scripts of [null, [null], [[]], [42], ['content.js'], [{js: null}], [{css: null}]]) {
+    save({...manifest, content_scripts});
+    assert.throws(() => checkUnpacked(root), /must be an array|must be objects|must be arrays/);
+  }
+  save({...manifest, content_scripts: [{js: null}]});
+  const script = fileURLToPath(new URL('./check-unpacked.mjs', import.meta.url));
+  const bad = spawnSync(process.execPath, [script, root], {encoding: 'utf8'});
+  assert.equal(bad.status, 1); assert.equal(bad.stdout, ''); assert.match(bad.stderr, /must be arrays/);
+  const optional = {...manifest}; delete optional.content_scripts; save(optional);
+  assert.equal(checkUnpacked(root).checkedFiles, 2);
+  save({...manifest, content_scripts: [{css: ['style.css']}]});
+  assert.equal(checkUnpacked(root).checkedFiles, 3);
+}));
