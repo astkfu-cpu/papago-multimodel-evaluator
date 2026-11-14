@@ -74,3 +74,27 @@ test('explicit null lists and non-object content groups fail without treating th
   save({...manifest, content_scripts: [{css: ['style.css']}]});
   assert.equal(checkUnpacked(root).checkedFiles, 3);
 }));
+
+test('checks direct quoted side-panel scripts and styles relative to the HTML page', () => fixture(({root, manifest, save}) => {
+  mkdirSync(join(root, 'ui')); mkdirSync(join(root, 'ui', 'assets'));
+  save({...manifest, side_panel: {default_path: 'ui/panel.html'}});
+  const page = '<link href="assets/panel.css?v=1" rel="stylesheet"><SCRIPT type="module" src="assets/panel%20code.js#part"></SCRIPT>';
+  writeFileSync(join(root, 'ui', 'panel.html'), page);
+  writeFileSync(join(root, 'ui', 'assets', 'panel.css'), 'synthetic css');
+  writeFileSync(join(root, 'ui', 'assets', 'panel code.js'), 'synthetic js');
+  assert.equal(checkUnpacked(root).checkedFiles, 6);
+  assert.equal(readFileSync(join(root, 'ui', 'panel.html'), 'utf8'), page);
+  rmSync(join(root, 'ui', 'assets', 'panel.css'));
+  assert.throws(() => checkUnpacked(root), /Missing declared file:.*panel.css/);
+}));
+
+test('side-panel checks support root paths and skip comments, non-stylesheets and network URLs', () => fixture(({root}) => {
+  writeFileSync(join(root, 'panel.html'), "<!-- <script src='absent.js'></script> --> <link rel='stylesheet' href='/style.css'><script src='https://example.invalid/remote.js'></script><link rel='preload' href='absent.css'><script>void 0;</script>");
+  assert.equal(checkUnpacked(root).checkedFiles, 4);
+  writeFileSync(join(root, 'panel.html'), '<script src="../outside.js"></script>');
+  assert.throws(() => checkUnpacked(root), /leaves the extension directory/);
+  writeFileSync(join(root, 'panel.html'), '<script src="absent.js"></script>');
+  const script = fileURLToPath(new URL('./check-unpacked.mjs', import.meta.url));
+  const bad = spawnSync(process.execPath, [script, root], {encoding: 'utf8'});
+  assert.equal(bad.status, 1); assert.equal(bad.stdout, ''); assert.match(bad.stderr, /absent.js/);
+}));

@@ -1,5 +1,5 @@
 import {existsSync, readFileSync, statSync} from 'node:fs';
-import {isAbsolute, relative, resolve, sep} from 'node:path';
+import {dirname, isAbsolute, relative, resolve, sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 export function checkUnpacked(directory) {
@@ -16,9 +16,25 @@ export function checkUnpacked(directory) {
     if (local === '..' || local.startsWith('..' + sep) || isAbsolute(local)) throw new Error('Declared file path leaves the extension directory.');
     if (!existsSync(target) || !statSync(target).isFile()) throw new Error('Missing declared file: ' + path);
     files.add(local);
+    return target;
   }
   if (manifest.background?.service_worker !== undefined) add(manifest.background.service_worker);
-  if (manifest.side_panel?.default_path !== undefined) add(manifest.side_panel.default_path);
+  if (manifest.side_panel?.default_path !== undefined) {
+    const panel = add(manifest.side_panel.default_path);
+    const html = readFileSync(panel, 'utf8').replace(/<!--[\s\S]*?-->/g, '');
+    for (const match of html.matchAll(/<(?:script|link)\b[^>]*>/gi)) {
+      const tag = match[0];
+      const attrs = Object.fromEntries([...tag.matchAll(/([\w-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g)].map(a => [a[1].toLowerCase(), a[2] ?? a[3]]));
+      const ref = /^<script\b/i.test(tag) ? attrs.src
+        : (attrs.rel ?? '').toLowerCase().split(/\s+/).includes('stylesheet') ? attrs.href : undefined;
+      if (!ref || /^[a-z][a-z\d+.-]*:|^\/\//i.test(ref)) continue;
+      const pathname = ref.split(/[?#]/, 1)[0];
+      if (!pathname) continue;
+      const decoded = decodeURIComponent(pathname);
+      const target = decoded.startsWith('/') ? resolve(root, '.' + decoded) : resolve(dirname(panel), decoded);
+      add(relative(root, target));
+    }
+  }
   const groups = manifest.content_scripts === undefined ? [] : manifest.content_scripts;
   if (!Array.isArray(groups)) throw new Error('content_scripts must be an array.');
   for (const group of groups) {

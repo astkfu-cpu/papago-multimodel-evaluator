@@ -39,11 +39,11 @@ if ($actual -ine $entry[0].sha256) { throw 'SHA-256 mismatch. Download the ZIP a
 
 已有 Node.js 20+ 和仓库副本时，可在仓库根目录运行 `npm run check:unpacked -- "/path/to/extracted-extension"`，在“加载解压缩的扩展”前检查目录。选择直接包含 `manifest.json` 的文件夹。检查仓库副本时，绝对评价用 `npm run check:unpacked -- .`，成对模块用 `npm run check:unpacked -- ./pairwise`。可用 `--help` 查看用法。
 
-工具检查 Manifest V3 的名称/版本字段，以及声明的后台 service worker、侧栏页面、内容脚本 JavaScript/CSS 文件。缺文件、用目录代替文件、列表格式错误或绝对/越界声明路径会以非零状态失败。成功时输出名称、版本和去重后声明文件数的 JSON 摘要。不安装、不改文件或浏览器设置、不读取归档、不调用 API。`npm run test:unpacked` 使用合成样本和两个公开模块目录，在 Windows/Ubuntu CI 执行。
+工具检查 Manifest V3 的名称/版本字段，以及声明的后台 service worker、侧栏页面、内容脚本 JavaScript/CSS 文件。缺文件、用目录代替文件、列表格式错误或绝对/越界声明路径会以非零状态失败。成功时输出名称、版本和去重后声明及引用文件数的 JSON 摘要。不安装、不改文件或浏览器设置、不读取归档、不调用 API。`npm run test:unpacked` 使用合成样本和两个公开模块目录，在 Windows/Ubuntu CI 执行。
 
 显式为 null 的内容脚本列表、null/非对象分组及 null 的 JavaScript/CSS 列表会失败，不会被当作未声明。合法省略可选列表和仅声明 CSS 仍受支持。
 
-这是有限范围的安装前检查，不代表浏览器已成功加载，也不是安全或哈希审计。它不追踪 import/HTML 引用，不验证所有 manifest 字段、图标、权限或浏览器版本兼容性；仍须执行本指南中的 ZIP 校验和浏览器步骤。独立演示是网页，没有扩展 manifest。
+这是有限范围的安装前检查，不代表浏览器已成功加载，也不是安全或哈希审计。它会检查声明侧栏 HTML 中属性带引号的直接本地脚本与样式表引用，按页面目录（以斜杠开头则按扩展根目录）解析路径，解码 URL 转义并排除查询/片段后缀；忽略注释、外部 URL 和非样式表链接，不联网。它不追踪 import，不解析所有 HTML 写法/实体，不验证所有 manifest 字段、图标、权限或浏览器版本兼容性；仍须执行本指南中的 ZIP 校验和浏览器步骤。独立演示是网页，没有扩展 manifest。
 
 ## 安装与配置
 
