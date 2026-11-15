@@ -10,13 +10,13 @@
 
 ```sh
 npm install
-npm test
-npm run verify:releases
-npm run verify:docs
+npm run verify:offline
 npx playwright install chromium
 npm run test:demo
 npm run test:upgrade
 ```
+
+安装依赖后，`npm run verify:offline` 会依次执行完整的无浏览器本地检查：`npm test`、`verify:releases`、`verify:docs`、`test:download`、`test:backup-cli` 和 `test:unpacked`。任一命令失败即停止并返回非零状态。检查只使用合成/公开样本和模拟响应，不调用付费模型或私人任务图片，不安装依赖或下载浏览器。这是 Windows/Ubuntu 单元 CI 已分别执行的检查的便捷入口；浏览器/归档界面及升级验证仍须运行下方的 `test:demo` 和 `test:upgrade`，离线检查成功不能证明浏览器行为或模型准确率。
 
 `npm test` 包括绝对评价模块的静态、API 缓存、定位检测和目标流水线检查，以及成对模块的 13 项 shared/backup 单元测试。两套模块使用各自的评价规则。`verify:releases` 核验 ZIP 摘要和清单中的当前源文件哈希，历史安装包保持不变。
 

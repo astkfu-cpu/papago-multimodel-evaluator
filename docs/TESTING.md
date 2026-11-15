@@ -8,13 +8,13 @@ Requirements: Node.js 20+, npm; browser regressions also need Playwright and a s
 
 ```sh
 npm install
-npm test
-npm run verify:releases
-npm run verify:docs
+npm run verify:offline
 npx playwright install chromium
 npm run test:demo
 npm run test:upgrade
 ```
+
+After dependencies are installed, `npm run verify:offline` runs the complete browser-free local suite in sequence: `npm test`, `verify:releases`, `verify:docs`, `test:download`, `test:backup-cli` and `test:unpacked`. A failed command stops the sequence and returns a nonzero status. It uses synthetic/public fixtures and mocked responses, without paid model calls or private task images; it does not install dependencies or download browsers. This is a convenience entry point for the checks already run separately in Windows/Ubuntu unit CI. Browser/archive UI and upgrade validation still require `test:demo` and `test:upgrade` below; offline success alone does not establish browser behavior or model accuracy.
 
 `npm test` covers absolute-module static/API-cache/target detection checks and 13 pairwise shared/backup unit tests. `verify:releases` checks ZIP digests and the recorded current source-file hashes; historical packages remain immutable.
 
