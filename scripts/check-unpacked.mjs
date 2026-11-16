@@ -9,6 +9,12 @@ export function checkUnpacked(directory) {
   if (manifest?.manifest_version !== 3 || typeof manifest.name !== 'string' || !manifest.name.trim() || typeof manifest.version !== 'string' || !manifest.version.trim()) {
     throw new Error('Expected a Manifest V3 extension with a name and version.');
   }
+  for (const key of ['background', 'side_panel']) {
+    const value = manifest[key];
+    if (value !== undefined && (!value || typeof value !== 'object' || Array.isArray(value))) {
+      throw new Error(key + ' must be an object when declared.');
+    }
+  }
   const files = new Set();
   function add(path) {
     if (typeof path !== 'string' || !path || /^[a-z]:|^[/\\]/i.test(path)) throw new Error('Expected a relative declared file path.');

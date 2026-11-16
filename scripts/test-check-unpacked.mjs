@@ -98,3 +98,20 @@ test('side-panel checks support root paths and skip comments, non-stylesheets an
   const bad = spawnSync(process.execPath, [script, root], {encoding: 'utf8'});
   assert.equal(bad.status, 1); assert.equal(bad.stdout, ''); assert.match(bad.stderr, /absent.js/);
 }));
+
+test('rejects malformed background and side-panel containers with no CLI success output', () => fixture(({root, manifest, save}) => {
+  const script = fileURLToPath(new URL('./check-unpacked.mjs', import.meta.url));
+  for (const key of ['background', 'side_panel']) {
+    for (const value of [null, [], 42, false, 'worker.js']) {
+      save({...manifest, [key]: value});
+      assert.throws(() => checkUnpacked(root), new RegExp(key + ' must be an object'));
+      const bad = spawnSync(process.execPath, [script, root], {encoding: 'utf8'});
+      assert.equal(bad.status, 1); assert.equal(bad.stdout, '');
+      assert.match(bad.stderr, new RegExp(key + ' must be an object'));
+    }
+  }
+  const optional = {...manifest}; delete optional.background; delete optional.side_panel; save(optional);
+  assert.equal(checkUnpacked(root).checkedFiles, 2);
+  save({...manifest, background: {service_worker: 'worker.js', type: 'module'}});
+  assert.equal(checkUnpacked(root).checkedFiles, 4);
+}));
