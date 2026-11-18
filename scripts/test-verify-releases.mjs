@@ -147,3 +147,37 @@ test('a release manifest cannot omit the installed pairwise source version', () 
   assert.match(result.stderr, /Expected exactly one current pairwise release for 1.1.0/);
   assert.doesNotMatch(result.stdout, /checks passed/);
 }));
+
+test('current absolute release cannot be omitted, mismatched or ambiguous', () => fixture(({root, verify}) => {
+  const path = join(root, 'dist', 'releases.json');
+  const original = JSON.parse(readFileSync(path, 'utf8'));
+  const absolute = original.find(r => r.module === 'absolute');
+  copyFileSync(join(root, 'dist', absolute.filename), join(root, 'dist', 'absolute-copy.zip'));
+  const cases = [
+    original.filter(r => r.module !== 'absolute'),
+    original.map(r => r.module === 'absolute' ? {...r, version: '0.0.0'} : r),
+    [...original, {...absolute, filename: 'absolute-copy.zip'}]
+  ];
+  for (const entries of cases) {
+    writeFileSync(path, JSON.stringify(entries));
+    const before = readFileSync(path), result = verify();
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Expected exactly one current absolute release for 0.28.1/);
+    assert.doesNotMatch(result.stdout, /checks passed/);
+    assert.deepEqual(readFileSync(path), before);
+  }
+}));
+
+test('absolute inventory follows its actual manifest version after an upgrade', () => fixture(({root, verify}) => {
+  const source = join(root, 'manifest.json'), path = join(root, 'dist', 'releases.json');
+  const next = JSON.stringify({version: '0.29.0', synthetic: 'next absolute source'});
+  writeFileSync(source, next);
+  const entries = JSON.parse(readFileSync(path, 'utf8'));
+  const entry = entries.find(r => r.module === 'absolute');
+  entry.source_files_sha256['manifest.json'] = digest(next);
+  writeFileSync(path, JSON.stringify(entries));
+  const bad = verify(); assert.equal(bad.status, 1);
+  assert.match(bad.stderr, /Expected exactly one current absolute release for 0.29.0/);
+  entry.version = '0.29.0'; writeFileSync(path, JSON.stringify(entries));
+  const good = verify(); assert.equal(good.status, 0, good.stderr);
+}));

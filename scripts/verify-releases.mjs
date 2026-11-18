@@ -9,6 +9,8 @@ if(!Array.isArray(releases) || releases.length===0)throw new Error('Release mani
 const pairwiseVersion=JSON.parse(readFileSync(resolve(root,'pairwise/manifest.json'),'utf8')).version;
 if(typeof pairwiseVersion!=='string' || !pairwiseVersion)throw new Error('Current pairwise manifest must declare a version.');
 if(releases.filter(r=>r && r.module==='pairwise' && r.version===pairwiseVersion).length!==1)throw new Error('Expected exactly one current pairwise release for '+pairwiseVersion);
+const absoluteVersion=JSON.parse(readFileSync(resolve(root,'manifest.json'),'utf8')).version;
+if(typeof absoluteVersion!=='string' || !absoluteVersion)throw new Error('Current absolute manifest must declare a version.');
 const filenames=new Set();
 for(const r of releases){
  if(filenames.has(r.filename))throw new Error('Duplicate package filename: '+r.filename);
@@ -23,4 +25,5 @@ for(const r of releases){
   if(!existsSync(path) || sha(path)!==expected)throw new Error('Source digest mismatch: '+r.module+'/'+name);
  }
 }
+if(releases.filter(r=>r && r.module==='absolute' && r.version===absoluteVersion).length!==1)throw new Error('Expected exactly one current absolute release for '+absoluteVersion);
 console.log('Release package and current source SHA-256 checks passed: '+releases.length+' packages.');
