@@ -102,3 +102,20 @@ test('escaped opening brackets are literal while even escapes and escaped image 
   assert.equal(result.links, 3);
   assert.deepEqual(result.problems.map(p => [p.line, p.target]), [[2, 'escaped-marker.md'], [3, 'even-escape.md'], [6, 'real-missing.md']]);
 }));
+
+test('escaped backticks outside code cannot hide links while code-span backslashes stay literal', () => fixture(root => {
+  const tick = String.fromCharCode(96), slash = String.fromCharCode(92);
+  writeFileSync(join(root, 'README.md'), [
+    'Escaped ' + slash + tick + '[real](escaped-missing.md)' + slash + tick,
+    'Odd ' + slash.repeat(3) + tick + '[real](odd-missing.md)' + slash + tick,
+    'Even ' + slash.repeat(2) + tick + '[code](hidden.md)' + tick + ' [real](even-real.md)',
+    'Code ' + tick + '[code](hidden.md)' + slash + tick + ' [real](after-code.md)',
+    'Partial run ' + slash + tick.repeat(2) + '[code](hidden.md)' + tick + ' [real](after-run.md)'
+  ].join('\r\n'));
+  const result = checkDocs(root);
+  assert.equal(result.links, 5);
+  assert.deepEqual(result.problems.map(p => [p.line, p.target]), [
+    [1, 'escaped-missing.md'], [2, 'odd-missing.md'], [3, 'even-real.md'],
+    [4, 'after-code.md'], [5, 'after-run.md']
+  ]);
+}));

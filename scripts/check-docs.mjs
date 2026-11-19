@@ -5,16 +5,22 @@ import {fileURLToPath} from 'node:url';
 const ignored = new Set(['.git', 'node_modules', 'tmp', 'outputs', 'work']);
 
 function withoutInlineCode(line) {
-  const runs = [...line.matchAll(/`+/g)], next = new Map(), closing = [];
+  const runs = [...line.matchAll(/`+/g)], next = new Map(), closing = [], escapedClosing = [];
   for (let i = runs.length - 1; i >= 0; i--) {
     closing[i] = next.get(runs[i][0].length);
+    escapedClosing[i] = next.get(runs[i][0].length - 1);
     next.set(runs[i][0].length, i);
   }
   let result = '', cursor = 0;
   for (let i = 0; i < runs.length; i++) {
-    const endRun = closing[i];
+    let escapes = 0;
+    for (let at = runs[i].index - 1; at >= 0 && line.charCodeAt(at) === 92; at--) escapes++;
+    const escaped = escapes % 2;
+    // Outside code, an escape consumes only the first backtick in a run.
+    // Inside code, a backslash cannot escape the closing delimiter.
+    const endRun = escaped ? escapedClosing[i] : closing[i];
     if (endRun === undefined) continue;
-    const start = runs[i].index, end = runs[endRun].index + runs[endRun][0].length;
+    const start = runs[i].index + escaped, end = runs[endRun].index + runs[endRun][0].length;
     result += line.slice(cursor, start) + ' '.repeat(end - start);
     cursor = end;
     i = endRun;
