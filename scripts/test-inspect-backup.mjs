@@ -1,4 +1,5 @@
 import {test} from 'node:test';
+import {createHash} from 'node:crypto';
 import assert from 'node:assert/strict';
 import {mkdtempSync, writeFileSync, readFileSync, rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -56,3 +57,32 @@ test('help succeeds and missing arguments fail',()=>{
   for(const flag of ['--help','-h']) { const result=invoke([flag]); assert.equal(result.status,0); assert.match(result.stdout,/Read-only counts/); }
   assert.equal(invoke([]).status,1);
 });
+
+test('optional digest identifies raw BOM and formatting bytes with unchanged counts and files',()=>fixture(async path=>{
+  const json=JSON.stringify(backupOf([sample('digest-id')],'1.1.0'));
+  writeFileSync(path,'\uFEFF'+json);
+  const before=readFileSync(path),base=await inspectBackup(path);
+  const expected={...base,sha256:createHash('sha256').update(before).digest('hex')};
+  assert.deepEqual(await inspectBackup(path,{sha256:true}),expected);
+  const result=invoke([path,'--sha256']);
+  assert.equal(result.status,0,result.stderr); assert.deepEqual(JSON.parse(result.stdout),expected);
+  assert(!result.stdout.includes('SYNTHETIC')); assert(!result.stdout.includes(path));
+  assert.deepEqual(readFileSync(path),before); assert(!('sha256' in JSON.parse(invoke([path]).stdout)));
+  writeFileSync(path,'\uFEFF'+json+'\n');
+  const changed=await inspectBackup(path,{sha256:true});
+  assert.notEqual(changed.sha256,expected.sha256);
+  const {sha256,...counts}=changed; assert.deepEqual(counts,base);
+}));
+
+test('digest mode rejects invalid backups and malformed options without emitting a digest or private input',()=>fixture(async path=>{
+  for(const text of ['{"private-EXAMPLE-marker": broken',JSON.stringify({judgments:{}})]) {
+    writeFileSync(path,text);
+    const result=invoke([path,'--sha256']);
+    assert.equal(result.status,1); assert.equal(result.stdout,'');
+    assert(!result.stderr.includes('private-EXAMPLE-marker')); assert(!result.stderr.includes(path));
+  }
+  writeFileSync(path,JSON.stringify(backupOf([],'1.1.0')));
+  for(const args of [[path,'--unknown'],[path,'--sha256','--sha256'],['--sha256',path],[path+'.missing','--sha256']]) {
+    const result=invoke(args); assert.equal(result.status,1); assert.equal(result.stdout,'');
+  }
+}));
